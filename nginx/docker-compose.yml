@@ -1,0 +1,90 @@
+# A complete deployment: nginx serving a share, with the whole config held
+# inline so the stack file is the only thing to keep. Copy dist/ into
+# <share>/.m3listing/ and this is all you need.
+#
+# NB every nginx variable below is written $$name. Compose interpolates
+# $name inside `content:` and would silently blank them all out — the
+# symptom is empty access-log fields and a listing that 301s to /.
+
+services:
+  files:
+    image: nginx:1.31.3-alpine
+    container_name: files
+    restart: always
+    init: true
+    ports:
+      - "8080:80"
+    volumes:
+      - /srv/share:/var/www/html:ro
+    configs:
+      - source: nginx_conf
+        target: /etc/nginx/nginx.conf
+        mode: 0444
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/.m3listing/bot.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+configs:
+  nginx_conf:
+    content: |
+      worker_rlimit_nofile 8192;
+
+      events {
+        worker_connections 4096;
+      }
+
+      http {
+        include       mime.types;
+        default_type  application/octet-stream;
+
+        # utf-8 at the http level so it also covers the skin's own css/js,
+        # which carry non-ASCII strings
+        charset utf-8;
+
+        log_format  main  '$$remote_addr - $$remote_user [$$time_local]  $$status '
+                          '"$$request" $$body_bytes_sent "$$http_referer" '
+                          '"$$http_user_agent" "$$http_x_forwarded_for"';
+        access_log  /dev/stdout  main;
+        error_log   /dev/stdout  warn;
+
+        sendfile    on;
+        tcp_nopush  on;
+        server_tokens off;
+
+        server {
+          listen 80 default_server;
+          server_name _;
+
+          location / {
+            root /var/www/html/;
+            try_files $$uri $$uri/ =404;
+
+            autoindex on;
+            autoindex_localtime on;
+            autoindex_exact_size off;
+
+            add_before_body /.m3listing/top.html;
+            add_after_body  /.m3listing/bot.html;
+
+            # nginx emits a whole document; drop the tags that would
+            # duplicate the ones top.html already opened
+            sub_filter '<html>' '';
+            sub_filter '<head><title>Index of $$uri</title></head>' '';
+            sub_filter '<body bgcolor="white">' '';
+            sub_filter '</body>' '';
+            sub_filter '</html>' '';
+            sub_filter_once on;
+          }
+
+          # the skin's own files: never listed, never wrapped
+          location ^~ /.m3listing/ {
+            root /var/www/html/;
+            autoindex off;
+          }
+        }
+      }

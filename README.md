@@ -72,7 +72,13 @@ with JavaScript disabled: the class is never set, so nothing is hidden.
    }
    ```
 
-   See [`nginx/example.conf`](nginx/example.conf) for a complete server block.
+   See [`nginx/example.conf`](nginx/example.conf) for a complete server block, or
+   [`nginx/docker-compose.yml`](nginx/docker-compose.yml) for a Docker deployment that
+   keeps the whole nginx config inline in the stack file.
+
+   > If you go the Compose route: **every `$` in the config must be written `$$`**.
+   > Compose interpolates `$name` inside `content:`, and blanking out `$uri` and the
+   > log-format variables produces a listing that 301s to `/` with empty access logs.
 
 3. Edit the `window.M3LISTING` block at the top of `top.html`:
 
