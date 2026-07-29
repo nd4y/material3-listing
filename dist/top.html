@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Index</title>
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath fill='%236442D6' d='M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h207q16 0 30.5 6t25.5 17l57 57h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Z'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/.m3listing/m3listing.css">
+
+<script>
+/* Runs before paint: marks the document as JS-capable (so a no-JS client
+   keeps the plain nginx listing) and applies the stored theme early. */
+(function () {
+  document.documentElement.classList.add('m3l-js');
+  try {
+    var t = localStorage.getItem('m3l.theme');
+    if (t && t !== 'auto') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+})();
+
+/* ---- configuration -------------------------------------------------- */
+window.M3LISTING = {
+  title: 'public',        /* the name shown on the page                     */
+  lang:  'auto'           /* 'auto' | 'ru' | 'en'                           */
+  /* repoUrl: '…'            override the credit link in the footer         */
+};
+/* --------------------------------------------------------------------- */
+</script>
+<script defer src="/.m3listing/m3listing.js"></script>
+</head>
+
+<body>
+
+<nav class="rail" aria-label="navigation">
+  <div class="rail__top">
+    <button class="rail-item rail-item--fab" id="m3l-searchfab" type="button" aria-expanded="false">
+      <span class="rail-item__ico"><span class="gs">search</span></span>
+      <span class="rail-item__lbl"></span>
+    </button>
+    <div class="rail__items">
+      <a class="rail-item" id="m3l-home" href="/">
+        <span class="rail-item__ico"><span class="gs">home</span></span>
+        <span class="rail-item__lbl"></span>
+      </a>
+      <button class="rail-item" id="m3l-up" type="button">
+        <span class="rail-item__ico"><span class="gs">arrow_upward</span></span>
+        <span class="rail-item__lbl"></span>
+      </button>
+      <button class="rail-item" id="m3l-view" type="button">
+        <span class="rail-item__ico"><span class="gs">grid_view</span></span>
+        <span class="rail-item__lbl"></span>
+      </button>
+      <button class="rail-item" id="m3l-pick" type="button" aria-pressed="false">
+        <span class="rail-item__ico"><span class="gs">check_box</span></span>
+        <span class="rail-item__lbl"></span>
+      </button>
+    </div>
+  </div>
+  <div class="rail__bottom">
+    <button class="rail-item rail-item--circle" id="m3l-theme" type="button">
+      <span class="rail-item__ico"><span class="gs">contrast</span></span>
+      <span class="rail-item__lbl"></span>
+    </button>
+  </div>
+</nav>
+
+<div class="m3l">
+
+  <header class="navbar">
+    <nav class="crumbs" aria-label="breadcrumb"></nav>
+    <div class="searchwrap" id="m3l-searchwrap">
+      <div class="search">
+        <span class="gs">search</span>
+        <input id="m3l-q" type="search" autocomplete="off" spellcheck="false" placeholder="Поиск">
+        <kbd>/</kbd>
+        <button class="iconbtn" id="m3l-clear" type="button" hidden>
+          <span class="gs">close</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero__wash" aria-hidden="true"></div>
+    <div class="hero__in">
+      <h1 class="hero__title">&nbsp;</h1>
+      <p class="hero__sub"></p>
+      <div class="badge">
+        <span class="gs" style="font-size:18px">folder_open</span>
+        <span class="stats"></span>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs" role="group" aria-label="sort">
+    <button class="tab" type="button" data-sort="name" aria-pressed="true"></button>
+    <button class="tab" type="button" data-sort="date" aria-pressed="false"></button>
+    <button class="tab" type="button" data-sort="size" aria-pressed="false"></button>
+  </nav>
+
+  <main class="list"></main>
+
+  <div class="empty" hidden>
+    <span class="gs">folder_open</span>
+    <p></p>
+  </div>
+
+  <footer class="foot">
+    <a href="/"></a>
+  </footer>
+</div>
+
+<div class="selbar" role="region" hidden>
+  <span class="selbar__n"></span>
+  <button class="selbar__btn" id="m3l-seldl" type="button">
+    <span class="gs">download</span><span class="selbar__t"></span>
+  </button>
+  <button class="selbar__btn selbar__btn--tonal" id="m3l-selcopy" type="button">
+    <span class="gs">link</span><span class="selbar__t"></span>
+  </button>
+  <button class="iconbtn" id="m3l-selclear" type="button">
+    <span class="gs">close</span>
+  </button>
+</div>
+
+<div class="toast" role="status" aria-live="polite"></div>
+
+<div class="rawwrap">
+<!-- nginx autoindex output starts here -->
