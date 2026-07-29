@@ -209,6 +209,7 @@ Both node scripts drive headless Chrome over CDP with no npm dependencies.
 
 ## License
 
-MIT for the HTML/CSS/JS. The inline fallback icon paths are
-[Material Symbols](https://github.com/google/material-design-icons), Apache 2.0. The
-webfonts are not redistributed — they are loaded from Google Fonts under their own licence.
+[MIT](LICENSE). The inline fallback icon paths are
+[Material Symbols](https://github.com/google/material-design-icons), Apache 2.0; the
+webfonts are not redistributed, only loaded from Google Fonts under their own licence.
+See [NOTICE](NOTICE).

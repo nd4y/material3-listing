@@ -1,0 +1,19 @@
+m3listing
+Copyright (c) 2026 nd4y
+Licensed under the MIT License (see LICENSE).
+
+Third-party material
+--------------------
+
+Material Symbols — the inline SVG fallback icon paths embedded in
+dist/m3listing.js and dist/top.html are taken from
+https://github.com/google/material-design-icons and are licensed under the
+Apache License 2.0.
+
+Google Sans, Google Sans Text and Google Symbols — loaded at runtime from
+fonts.googleapis.com by the two @import lines at the top of
+dist/m3listing.css. These faces are not redistributed here; they are served
+by Google under
+https://fonts.google.com/license/googlerestricted. Removing the two @import
+lines removes the dependency: the type falls back to Roboto/system fonts and
+the icons fall back to the bundled Material Symbols SVG paths.
