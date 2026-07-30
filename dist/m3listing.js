@@ -46,6 +46,7 @@
       deepDone: 'Просмотрено каталогов: {n}', deepIn: 'в {p}',
       calcSize: 'Посчитать размер', calculating: 'считаю…',
       lang: 'Язык', langAuto: 'Как в системе', langRu: 'Русский', langEn: 'English',
+      themeAuto: 'Как в системе', themeLight: 'Светлая', themeDark: 'Тёмная',
       ddTitle: 'Скачать каталог', ddSub: 'Целиком, со вложенными каталогами',
       ddHere: 'Скачать этот каталог',
       ddFs: 'Сохранить на диск', ddWget: 'Команда wget', ddAria: 'Список для aria2c',
@@ -98,6 +99,7 @@
       deepDone: '{n} directories scanned', deepIn: 'in {p}',
       calcSize: 'Measure size', calculating: 'measuring…',
       lang: 'Language', langAuto: 'System', langRu: 'Русский', langEn: 'English',
+      themeAuto: 'System', themeLight: 'Light', themeDark: 'Dark',
       ddTitle: 'Download directory', ddSub: 'Everything in it, subdirectories included',
       ddHere: 'Download this directory',
       ddFs: 'Save to disk', ddWget: 'wget command', ddAria: 'aria2c list',
@@ -142,10 +144,14 @@
     return /^ru\b/i.test(navigator.language || '') ? 'ru' : 'en';
   }
 
+  /* what 'auto' resolves to: the page's own configured default if it has
+     one, the browser's language otherwise */
+  function autoLang() {
+    return (CFG.lang && CFG.lang !== 'auto') ? CFG.lang : detectLang();
+  }
+
   function setLang(mode) {
-    LANG = (!mode || mode === 'auto')
-      ? (CFG.lang && CFG.lang !== 'auto' ? CFG.lang : detectLang())
-      : mode;
+    LANG = (!mode || mode === 'auto') ? autoLang() : mode;
     if (!STR[LANG]) LANG = 'en';
     T = STR[LANG];
     LOCALE = LANG === 'ru' ? 'ru-RU' : 'en-GB';
@@ -617,21 +623,8 @@
       syncView(); render();
     });
     $.pick.addEventListener('click', function () { setPicking(!state.picking); });
-    $.theme.addEventListener('click', function () {
-      var order = ['auto', 'light', 'dark'];
-      var next = order[(order.indexOf(LS.get('theme', 'auto')) + 1) % 3];
-      LS.set('theme', next);
-      applyTheme(next);
-      syncTheme(next);
-    });
-    $.lang.addEventListener('click', function () {
-      var order = ['auto', 'ru', 'en'];
-      var next = order[(order.indexOf(LS.get('lang', 'auto')) + 1) % 3];
-      LS.set('lang', next);
-      setLang(next);
-      applyStrings();
-      render();
-    });
+    $.theme.addEventListener('click', function () { openThemeMenu(); });
+    $.lang.addEventListener('click', function () { openLangMenu(); });
 
     /* the credit lives in the rail, where the site keeps its own
        secondary controls — a lone link under the list read as debris */
@@ -733,10 +726,10 @@
 
   function syncLang() {
     var mode = LS.get('lang', 'auto');
-    $.lang.querySelector('.rail-item__lbl').textContent =
-      mode === 'auto' ? T.lang : (mode === 'ru' ? T.langRu : T.langEn);
+    var name = mode === 'auto' ? T.langAuto : (mode === 'ru' ? T.langRu : T.langEn);
+    $.lang.querySelector('.rail-item__lbl').textContent = mode === 'auto' ? T.lang : name;
     $.lang.setAttribute('data-mode', mode);
-    $.lang.title = mode === 'auto' ? T.langAuto : (mode === 'ru' ? T.langRu : T.langEn);
+    $.lang.title = T.lang + ' · ' + name;
   }
 
   /* ==================================================================
@@ -1185,11 +1178,160 @@
   function syncTheme(mode) {
     swapIcon($.theme.querySelector('.rail-item__ico'),
              mode === 'auto' ? 'contrast' : mode === 'light' ? 'light_mode' : 'dark_mode');
+    var name = mode === 'auto' ? T.themeAuto
+             : mode === 'light' ? T.themeLight : T.themeDark;
+    $.theme.querySelector('.rail-item__lbl').textContent = mode === 'auto' ? T.theme : name;
+    $.theme.title = T.theme + ' · ' + name;
   }
 
   function applyTheme(mode) {
     if (mode === 'auto') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', mode);
+  }
+
+  function sysDark() {
+    return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+
+  /* ==================================================================
+     Menus
+
+     Language and theme used to be buttons that cycled through their
+     three states. A cycling button cannot show which state it is in —
+     you press it and find out. These are anchored single-choice menus
+     instead: every option is on screen, the active one is ticked, and
+     picking one is a single click.
+     ================================================================== */
+  var menuState = null;
+
+  function menuHost() {
+    if ($.menu) return;
+    $.menu = document.querySelector('.menu');
+    $.menuCard = $.menu.querySelector('.menu__card');
+    /* the overlay is the whole viewport, so anything outside the card
+       closes the menu — including a second press on its own button */
+    $.menu.addEventListener('click', function (ev) {
+      if (ev.target === $.menu) closeMenu();
+    });
+    $.menuCard.addEventListener('keydown', onMenuKey);
+    addEventListener('resize', function () { if (menuState) placeMenu(); });
+  }
+
+  function openMenu(anchor, items, current, onPick) {
+    var reopening = menuState && menuState.anchor === anchor;
+    closeMenu();
+    if (reopening) return;
+    menuHost();
+
+    var card = $.menuCard;
+    card.textContent = '';
+    items.forEach(function (it) {
+      var on = it.key === current;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'menu__item' + (on ? ' is-on' : '');
+      b.setAttribute('role', 'menuitemradio');
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      if (it.icon) b.appendChild(icon(it.icon, 'menu__lead'));
+      var t = document.createElement('span');
+      t.className = 'menu__t';
+      t.appendChild(document.createTextNode(it.label));
+      if (it.sub) {
+        var s = document.createElement('span');
+        s.className = 'menu__sub';
+        s.textContent = it.sub;
+        t.appendChild(s);
+      }
+      b.appendChild(t);
+      b.appendChild(icon('check', 'menu__ck'));
+      b.addEventListener('click', function () { closeMenu(); onPick(it.key); });
+      card.appendChild(b);
+    });
+
+    $.menu.hidden = false;
+    anchor.setAttribute('aria-expanded', 'true');
+    menuState = { anchor: anchor };
+    /* placeMenu() reads offsetWidth, which flushes layout and commits the
+       closed state — so the class can go on in the same tick and the
+       transition still runs. A requestAnimationFrame here would never
+       fire in a background tab, leaving the menu invisible. */
+    placeMenu();
+    $.menu.classList.add('show');
+    var first = card.querySelector('.menu__item.is-on') || card.querySelector('.menu__item');
+    if (first) first.focus({ preventScroll: true });
+  }
+
+  /* Anchored to the rail, which is on the left on a desktop and along
+     the bottom on a phone — so the menu grows sideways out of the
+     button in one case and upwards out of it in the other. */
+  function placeMenu() {
+    var card = $.menuCard, r = menuState.anchor.getBoundingClientRect();
+    var w = card.offsetWidth, h = card.offsetHeight;
+    var vw = innerWidth, vh = innerHeight, gap = 8, pad = 8;
+    var left, top, ox, oy;
+    if (matchMedia('(max-width: 768px)').matches) {
+      left = Math.max(pad, Math.min(r.left + r.width / 2 - w / 2, vw - w - pad));
+      top = r.top - h - gap; ox = 'center'; oy = 'bottom';
+      if (top < pad) { top = Math.min(r.bottom + gap, vh - h - pad); oy = 'top'; }
+    } else {
+      left = r.right + gap; ox = 'left'; oy = 'bottom';
+      top = Math.max(pad, Math.min(r.bottom - h, vh - h - pad));
+      if (left + w > vw - pad) { left = Math.max(pad, r.left - w - gap); ox = 'right'; }
+    }
+    card.style.left = left + 'px';
+    card.style.top = top + 'px';
+    card.style.setProperty('--mo', ox + ' ' + oy);
+  }
+
+  function closeMenu() {
+    if (!menuState) return;
+    var anchor = menuState.anchor;
+    menuState = null;
+    $.menu.classList.remove('show');
+    anchor.setAttribute('aria-expanded', 'false');
+    if ($.menuCard.contains(document.activeElement)) anchor.focus({ preventScroll: true });
+    setTimeout(function () { if (!menuState) $.menu.hidden = true; }, 320);
+  }
+
+  function onMenuKey(ev) {
+    var items = Array.prototype.slice.call($.menuCard.querySelectorAll('.menu__item'));
+    var i = items.indexOf(document.activeElement);
+    if (ev.key === 'Tab') { closeMenu(); return; }
+    if (ev.key === 'Escape') { ev.preventDefault(); closeMenu(); }
+    else if (ev.key === 'ArrowDown') { ev.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (ev.key === 'ArrowUp') { ev.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    else if (ev.key === 'Home') { ev.preventDefault(); items[0].focus(); }
+    else if (ev.key === 'End') { ev.preventDefault(); items[items.length - 1].focus(); }
+    /* whatever the key was, the listing behind must not also react to it */
+    ev.stopPropagation();
+  }
+
+  function openThemeMenu() {
+    openMenu($.theme, [
+      { key: 'auto',  icon: 'contrast',   label: T.themeAuto,
+        sub: sysDark() ? T.themeDark : T.themeLight },
+      { key: 'light', icon: 'light_mode', label: T.themeLight },
+      { key: 'dark',  icon: 'dark_mode',  label: T.themeDark }
+    ], LS.get('theme', 'auto'), function (k) {
+      LS.set('theme', k);
+      applyTheme(k);
+      syncTheme(k);
+    });
+  }
+
+  /* No leading icons here: a glyph per language would either be a flag —
+     which is not what a language is — or the same globe three times. */
+  function openLangMenu() {
+    openMenu($.lang, [
+      { key: 'auto', label: T.langAuto, sub: autoLang() === 'ru' ? T.langRu : T.langEn },
+      { key: 'ru',   label: T.langRu },
+      { key: 'en',   label: T.langEn }
+    ], LS.get('lang', 'auto'), function (k) {
+      LS.set('lang', k);
+      setLang(k);
+      applyStrings();
+      render();
+    });
   }
 
   /* ==================================================================
@@ -2108,6 +2250,9 @@
   var typeBuf = '', typeTimer;
 
   function onKey(ev) {
+    /* an open menu owns the keyboard; it stops what it handles from
+       reaching here, and the rest must not reach here either */
+    if (menuState) return;
     var inField = ev.target === $.q;
 
     if (state.viewing) {

@@ -32,6 +32,10 @@ Three static files. Drop them next to the share and add two lines to nginx.
     <td><img src="screenshots/hover.png" alt="Hover: corner and icon-fill morph"></td>
     <td><img src="screenshots/mobile-select.png" alt="Mobile bottom bar"></td>
   </tr>
+  <tr>
+    <td><img src="screenshots/menu-light.png" alt="The theme menu, with the active choice ticked"></td>
+    <td><img src="screenshots/search-light.png" alt="Search, expanded from the rail"></td>
+  </tr>
 </table>
 
 ## How it works
@@ -247,7 +251,8 @@ collect 429s instead of answers.
 - A "new" badge on anything modified in the last few days
 - Sort by name, date or size as tabs; click the active tab to flip direction; folders first
 - List and grid views, remembered per browser
-- Light / dark / follow-system theme, remembered per browser
+- Light / dark / follow-system theme, remembered per browser, chosen from a menu that
+  ticks the active option and says which way the system currently leans
 - Navigation rail on desktop, bottom bar under 768px — the site's own adaptive split
 - Clickable breadcrumbs, up button, `Backspace` and `Alt`+`←` to go up
 - Arrow keys move a cursor through the rows, `Enter` opens
@@ -261,7 +266,8 @@ collect 429s instead of answers.
   no server-side zip — folders can be selected for their links but not downloaded
 - Folder totals: item counts and the summed size of what is currently shown
 - Russian and English UI: it follows the system language, and the globe in the rail
-  cycles system → Русский → English, relabelling in place without a reload
+  opens a menu — System / Русский / English — that relabels in place without a reload.
+  Both menus are keyboard-navigable and anchor themselves to the rail, wherever it is
 - Noise filtered out: `@eaDir`, `#recycle`, `Thumbs.db`, `.DS_Store`, the asset dir itself
   (configurable via `hide`)
 

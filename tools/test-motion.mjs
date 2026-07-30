@@ -229,16 +229,123 @@ check('a long name keeps its badge inside the row',
       longRow.skip ? 'no long+fresh row in the fixture'
                    : `badge ends at ${longRow.badgeRight}, row at ${longRow.rowRight}, page overflow ${longRow.overflow}px`);
 
-/* the language toggle relabels without a reload */
-const langs = await evaluate(`(() => {
-  const before = document.documentElement.lang;
+/* language and theme are menus, not cycling toggles: the current choice
+   must be readable before anything is clicked */
+const menu = await evaluate(`(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   const btn = document.getElementById('m3l-lang');
-  const seen = [];
-  for (let i = 0; i < 3; i++) { btn.click(); seen.push(document.documentElement.lang); }
-  return { before, seen, tab: document.querySelector('.tab').textContent };
+  const el = document.querySelector('.menu'), card = el.querySelector('.menu__card');
+  const langBefore = document.documentElement.lang;
+  btn.click();
+  const start = getComputedStyle(card).opacity;
+  const expanded = btn.getAttribute('aria-expanded');
+  await sleep(450);
+  const rows = [...card.querySelectorAll('.menu__item')];
+  const cs = getComputedStyle(card);
+  const r = card.getBoundingClientRect(), b = btn.getBoundingClientRect();
+  return {
+    hidden: el.hidden, expanded, start, end: cs.opacity,
+    transition: cs.transition, transform: cs.transform,
+    n: rows.length,
+    role: card.getAttribute('role'), itemRole: rows[0].getAttribute('role'),
+    checked: rows.filter(x => x.getAttribute('aria-checked') === 'true').length,
+    onLabel: (rows.find(x => x.classList.contains('is-on')) || {}).textContent,
+    ck: rows.map(x => getComputedStyle(x.querySelector('.menu__ck')).opacity),
+    anchored: r.left >= b.right && r.top >= 0 && r.bottom <= innerHeight,
+    langBefore, langNow: document.documentElement.lang
+  };
 })()`);
-check('the language button cycles system → ru → en',
-      langs.seen.includes('ru') && langs.seen.includes('en'), langs.seen.join(' → '));
+check('the language control opens a menu',
+      !menu.hidden && menu.n === 3 && menu.role === 'menu' &&
+      menu.itemRole === 'menuitemradio' && menu.expanded === 'true',
+      `${menu.n} items, expanded=${menu.expanded}`);
+check('the menu fades and scales in on the site\'s curve',
+      menu.start === '0' && menu.end === '1' &&
+      menu.transition.includes(EASE) && menu.transform === 'matrix(1, 0, 0, 1, 0, 0)',
+      `${menu.start} → ${menu.end}, ${menu.transform}`);
+check('exactly one option is ticked',
+      menu.checked === 1 && menu.ck.filter(o => o === '1').length === 1,
+      `${menu.onLabel} · checks ${menu.ck.join('/')}`);
+check('the menu is anchored beside its button', menu.anchored, String(menu.anchored));
+check('opening the menu alone changes nothing',
+      menu.langBefore === menu.langNow, menu.langNow);
+
+/* keyboard: arrows walk the options, Escape closes and hands focus back */
+const mkeys = await evaluate(`(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const fire = k => document.activeElement.dispatchEvent(
+    new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+  const first = document.activeElement.textContent;
+  fire('ArrowDown'); const second = document.activeElement.textContent;
+  fire('ArrowUp');   const back = document.activeElement.textContent;
+  fire('Escape');    await sleep(400);
+  return { first, second, back, closed: document.querySelector('.menu').hidden,
+           focus: document.activeElement.id,
+           cursors: document.querySelectorAll('.item.is-cursor').length };
+})()`);
+check('arrow keys walk the menu',
+      mkeys.second !== mkeys.first && mkeys.back === mkeys.first,
+      `${mkeys.first} → ${mkeys.second} → ${mkeys.back}`);
+check('Escape closes it and returns focus to the button',
+      mkeys.closed && mkeys.focus === 'm3l-lang', mkeys.focus);
+check('the listing behind the menu ignores those keys',
+      mkeys.cursors === 0, mkeys.cursors + ' rows moved');
+
+/* picking relabels the chrome without a reload, and the choice is still
+   ticked when the menu is reopened */
+const picked = await evaluate(`(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const btn = document.getElementById('m3l-lang');
+  const card = document.querySelector('.menu__card');
+  const before = document.querySelector('.tab').textContent;
+  btn.click(); await sleep(60);
+  [...card.querySelectorAll('.menu__item')][2].click();      /* English */
+  await sleep(400);
+  const en = { lang: document.documentElement.lang,
+               tab: document.querySelector('.tab').textContent,
+               closed: document.querySelector('.menu').hidden,
+               stored: localStorage.getItem('m3l.lang') };
+  btn.click(); await sleep(60);
+  const rows = [...card.querySelectorAll('.menu__item')];
+  en.reopened = (rows.find(x => x.classList.contains('is-on')) || {}).textContent;
+  rows[0].click(); await sleep(350);                         /* back to system */
+  return { before, en };
+})()`);
+check('picking a language relabels without a reload',
+      picked.en.lang === 'en' && picked.en.tab !== picked.before &&
+      picked.en.closed && picked.en.stored === 'en',
+      `${picked.before} → ${picked.en.tab}`);
+check('the reopened menu shows what was picked',
+      /English/.test(picked.en.reopened || ''), picked.en.reopened);
+
+const themeMenu = await evaluate(`(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const btn = document.getElementById('m3l-theme');
+  const card = document.querySelector('.menu__card');
+  btn.click(); await sleep(60);
+  const rows = [...card.querySelectorAll('.menu__item')];
+  const icons = rows.map(x => (x.querySelector('.menu__lead') || {}).textContent);
+  const sub = rows[0].querySelector('.menu__sub');
+  const subText = sub && sub.textContent;
+  rows[1].click(); await sleep(350);                         /* light */
+  const light = document.documentElement.getAttribute('data-theme');
+  btn.click(); await sleep(60);
+  const ticked = (card.querySelector('.menu__item.is-on') || {}).textContent;
+  const railTitle = btn.title;
+  [...card.querySelectorAll('.menu__item')][0].click();      /* back to system */
+  await sleep(350);
+  return { icons, subText, light, ticked, railTitle,
+           auto: document.documentElement.getAttribute('data-theme') };
+})()`);
+check('the theme menu carries one glyph per mode',
+      themeMenu.icons.join(',') === 'contrast,light_mode,dark_mode',
+      themeMenu.icons.join(', '));
+check('the system option says which way the system leans',
+      !!themeMenu.subText, themeMenu.subText);
+check('picking a theme applies it and the button says so',
+      themeMenu.light === 'light' && /Light|Светлая/.test(themeMenu.ticked || '') &&
+      themeMenu.auto === null && /·/.test(themeMenu.railTitle),
+      `${themeMenu.light} · ${themeMenu.ticked} · ${themeMenu.railTitle}`);
 await sleep(700);   /* let the viewer finish closing before hover tests */
 
 /* ---- 2c. multi-select ---- */

@@ -1341,7 +1341,95 @@ html:not(.gs-ready) .gs { visibility: hidden; }
 }
 
 /* ---------------------------------------------------------------
-   16. Reduced motion
+   17. Menus — language and theme
+
+   A toggle that cycles through three states never says which state it
+   is in. These are proper anchored menus instead: every option is
+   listed, the active one carries a check, and the choice is a single
+   click rather than a guess at how many more clicks are left.
+   --------------------------------------------------------------- */
+.menu { position: fixed; inset: 0; z-index: 80; }
+
+.menu__card {
+  position: absolute;
+  min-width: 224px;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 8px;
+  background: var(--surface-c3);
+  color: var(--on-surface);
+  border-radius: var(--r-item);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .28);
+  /* the menu grows out of the corner nearest its button; the script
+     sets the corner along with the position */
+  transform-origin: var(--mo, left bottom);
+  opacity: 0;
+  transform: scale(.9, .8);
+  transition: opacity var(--d-fast) var(--ease),
+              transform var(--d-med) var(--ease),
+              background-color var(--d-slow) var(--ease);
+}
+.menu.show .menu__card { opacity: 1; transform: scale(1, 1); }
+
+.menu__item {
+  opacity: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 12px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--on-surface);
+  font-family: var(--sans-text);
+  font-size: 14px;
+  line-height: 18px;
+  border-radius: var(--r-full);
+  transition: background-color var(--d-fast) var(--ease),
+              border-radius var(--d-med) var(--ease),
+              color var(--d-med) var(--ease),
+              opacity var(--d-med) var(--ease);
+}
+/* the surface arrives first, its contents a beat later — the same
+   two-step the site uses for anything that unfolds. The delay is
+   per-property so hovering an already-open menu stays instant. */
+.menu.show .menu__item { opacity: 1; transition-delay: 0s, 0s, 0s, .05s; }
+.menu__item:hover { background: var(--surface-c4); border-radius: var(--r-row); }
+.menu__item.is-on { color: var(--primary); }
+
+.menu__lead { flex: none; font-size: 22px; color: var(--on-surface-variant); }
+.menu__item.is-on .menu__lead {
+  color: var(--primary);
+  font-variation-settings: "opsz" 24, "wght" 400, "FILL" 1, "GRAD" 0;
+}
+
+.menu__t { flex: 1 1 auto; min-width: 0; }
+.menu__sub {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--on-surface-variant);
+}
+
+/* The check is the whole point of the menu, so it grows in rather than
+   being there from the start. The rows are built fresh on every open,
+   so this is a keyframe — there is no previous state to transition
+   from. */
+.menu__ck { flex: none; font-size: 20px; color: var(--primary); opacity: 0; }
+.menu__item.is-on .menu__ck { opacity: 1; }
+.menu.show .menu__item.is-on .menu__ck {
+  animation: ckpop var(--d-med) var(--ease) .06s backwards;
+}
+@keyframes ckpop {
+  from { opacity: 0; transform: scale(.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ---------------------------------------------------------------
+   18. Reduced motion
    --------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

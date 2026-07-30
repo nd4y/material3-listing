@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- bump ?v= on every asset change: proxies and browsers cache these, and a
      stale css/js pair is the one way this can break after an update -->
-<link rel="stylesheet" href="/.m3listing/m3listing.css?v=6">
+<link rel="stylesheet" href="/.m3listing/m3listing.css?v=7">
 
 <script>
 /* Runs before paint: marks the document as JS-capable (so a no-JS client
@@ -32,8 +32,8 @@ window.M3LISTING = {
 };
 /* --------------------------------------------------------------------- */
 </script>
-<script defer src="/.m3listing/m3listing-probe.js?v=6"></script>
-<script defer src="/.m3listing/m3listing.js?v=6"></script>
+<script defer src="/.m3listing/m3listing-probe.js?v=7"></script>
+<script defer src="/.m3listing/m3listing.js?v=7"></script>
 </head>
 
 <body>
@@ -64,7 +64,8 @@ window.M3LISTING = {
     </div>
   </div>
   <div class="rail__bottom">
-    <button class="rail-item rail-item--circle" id="m3l-lang" type="button">
+    <button class="rail-item rail-item--circle" id="m3l-lang" type="button"
+            aria-haspopup="menu" aria-expanded="false">
       <span class="rail-item__ico"><span class="gs">language</span></span>
       <span class="rail-item__lbl"></span>
     </button>
@@ -72,7 +73,8 @@ window.M3LISTING = {
       <span class="rail-item__ico"><span class="gs">code</span></span>
       <span class="rail-item__lbl"></span>
     </a>
-    <button class="rail-item rail-item--circle" id="m3l-theme" type="button">
+    <button class="rail-item rail-item--circle" id="m3l-theme" type="button"
+            aria-haspopup="menu" aria-expanded="false">
       <span class="rail-item__ico"><span class="gs">contrast</span></span>
       <span class="rail-item__lbl"></span>
     </button>
@@ -198,6 +200,10 @@ window.M3LISTING = {
       <button class="dlgbtn dlgbtn--text" id="m3l-dd-close" type="button"></button>
     </div>
   </div>
+</div>
+
+<div class="menu" hidden>
+  <div class="menu__card" role="menu" tabindex="-1"></div>
 </div>
 
 <div class="toast" role="status" aria-live="polite"></div>

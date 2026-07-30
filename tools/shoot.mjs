@@ -68,6 +68,10 @@ const shots = [
   { name: 'grid-dark',   w: 1280, h: 900,  dark: true,  pre: "localStorage.setItem('m3l.view','grid')" },
   { name: 'search-light',w: 1280, h: 900,  dark: false, post: "document.getElementById('m3l-searchfab').click(); setTimeout(function(){var q=document.getElementById('m3l-q');q.value='iso';q.dispatchEvent(new Event('input'));},400)" },
   { name: 'select-light',w: 1280, h: 900,  dark: false, post: "var c=document.querySelectorAll('.item__ico');c[4].click();c[5].click();c[7].click()" },
+  /* the blur is for the picture only: a scripted click leaves Chrome
+     thinking the focus was keyboard-driven, so the first row would carry
+     a focus ring a real mouse user never sees */
+  { name: 'menu-light', w: 1280, h: 900,  dark: false, post: "document.getElementById('m3l-theme').click();setTimeout(function(){document.activeElement.blur();},100)" },
   { name: 'mobile-light',w: 400,  h: 860,  dark: false, dsf: 2 },
   { name: 'mobile-dark', w: 400,  h: 860,  dark: true,  dsf: 2 },
   { name: 'mobile-select',w: 400, h: 860,  dark: false, dsf: 2, post: "var c=document.querySelectorAll('.item__ico');c[1].click();c[4].click()" }
