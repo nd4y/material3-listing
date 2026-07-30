@@ -408,6 +408,75 @@ mkdirSync('screenshots', { recursive: true });
 const shot = await send('Page.captureScreenshot', { format: 'png' }, S);
 writeFileSync('screenshots/hover.png', Buffer.from(shot.data, 'base64'));
 
+/* ---- 3b. the view switch heads the list, and the phone bar is short ---- */
+await send('Emulation.setEmulatedMedia', { features: [] }, S);
+await send('Page.navigate', { url: BASE }, S);
+await sleep(2500);
+const viewSwitch = await evaluate(`(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const b = document.getElementById('m3l-view');
+  const bar = document.querySelector('.listbar').getBoundingClientRect();
+  const tabs = document.querySelector('.tabs').getBoundingClientRect();
+  const r = b.getBoundingClientRect();
+  const inRail = !!document.querySelector('.rail #m3l-view');
+  const first = b.querySelector('.gs').textContent;
+  b.click(); await sleep(400);
+  const grid = document.querySelector('.list').classList.contains('grid');
+  const second = b.querySelector('.gs').textContent;
+  b.click(); await sleep(400);
+  return { inRail, first, second, grid,
+           rightAligned: Math.abs(r.right - bar.right) < 2 && r.left >= tabs.right - 1,
+           sameRow: Math.abs(r.top - tabs.top) < 2,
+           aboveList: r.bottom <= document.querySelector('.list').getBoundingClientRect().top };
+})()`);
+check('the view switch sits at the right of the list header, not in the rail',
+      !viewSwitch.inRail && viewSwitch.rightAligned && viewSwitch.sameRow && viewSwitch.aboveList,
+      `rail=${viewSwitch.inRail}, right=${viewSwitch.rightAligned}, row=${viewSwitch.sameRow}`);
+check('it switches the list and says what it will do next',
+      viewSwitch.grid && viewSwitch.first === 'grid_view' && viewSwitch.second === 'view_list',
+      `${viewSwitch.first} → ${viewSwitch.second}`);
+
+await send('Emulation.setDeviceMetricsOverride',
+  { width: 400, height: 860, deviceScaleFactor: 2, mobile: true }, S);
+await sleep(600);
+const phoneBar = await evaluate(`(() => {
+  const rail = document.querySelector('.rail');
+  const shown = [...rail.querySelectorAll('.rail-item')].filter(n => n.offsetParent !== null);
+  return { ids: shown.map(n => n.id), horizontal: rail.getBoundingClientRect().width > 300,
+           overflows: rail.scrollWidth > rail.clientWidth + 1,
+           viewH: Math.round(document.getElementById('m3l-view').getBoundingClientRect().height) };
+})()`);
+check('the phone bar drops Select and stops overflowing',
+      phoneBar.horizontal && phoneBar.ids.length === 5 &&
+      phoneBar.ids.indexOf('m3l-pick') === -1 && !phoneBar.overflows,
+      phoneBar.ids.join(', '));
+check('the view switch shrinks with the sort strip on a phone',
+      phoneBar.viewH === 68, phoneBar.viewH + 'px');
+
+/* a long press is how selection starts where there is no Select button */
+const longPress = await evaluate(`(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const row = document.querySelector('.item');
+  const touch = t => row.dispatchEvent(new Event(t, { bubbles: true }));
+  touch('touchstart'); await sleep(650); touch('touchend');
+  const picking = document.documentElement.classList.contains('is-picking');
+  const selected = document.querySelectorAll('.item.is-sel').length;
+  const nav = location.pathname;
+  row.querySelector('.item__link').click();      /* the tap that ends the press */
+  await sleep(200);
+  const stayed = location.pathname === nav;
+  document.getElementById('m3l-selclear').click(); await sleep(300);
+  return { picking, selected, stayed,
+           cleared: document.querySelectorAll('.item.is-sel').length };
+})()`);
+check('a long press starts selection on touch',
+      longPress.picking && longPress.selected === 1,
+      `picking=${longPress.picking}, ${longPress.selected} selected`);
+check('the tap that ends the press does not also open the row',
+      longPress.stayed && longPress.cleared === 0, String(longPress.stayed));
+
+await send('Emulation.clearDeviceMetricsOverride', {}, S);
+
 /* ---- 4. reduced motion zeroes everything ---- */
 await send('Emulation.setEmulatedMedia',
   { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }, S);

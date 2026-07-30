@@ -1169,10 +1169,10 @@
   }
 
   function syncView() {
-    swapIcon($.view.querySelector('.rail-item__ico'),
-             state.view === 'list' ? 'grid_view' : 'view_list');
-    $.view.querySelector('.rail-item__lbl').textContent =
-      state.view === 'list' ? T.viewGrid : T.viewList;
+    var next = state.view === 'list' ? T.viewGrid : T.viewList;
+    swapIcon($.view, state.view === 'list' ? 'grid_view' : 'view_list');
+    $.view.title = next;
+    $.view.setAttribute('aria-label', next);
   }
 
   function syncTheme(mode) {
@@ -1550,10 +1550,30 @@
     a.title = e.name + (e.exact && e.size != null
       ? '\n' + e.size.toLocaleString(LOCALE) + ' ' + UNITS[0] : '');
 
+    /* Touch has no modifier keys, and the phone's bottom bar carries no
+       Select button — a long press starts selection there, the same
+       gesture a phone's own file manager uses. */
+    var pressed = false, pressTimer = null;
+    var pressOff = function () { clearTimeout(pressTimer); pressTimer = null; };
+    a.addEventListener('touchstart', function () {
+      pressed = false;
+      pressTimer = setTimeout(function () {
+        pressed = true;
+        if (!state.picking) setPicking(true);
+        toggleSel(e, i);
+        if (navigator.vibrate) navigator.vibrate(10);
+      }, 500);
+    }, { passive: true });
+    ['touchmove', 'touchend', 'touchcancel'].forEach(function (t) {
+      a.addEventListener(t, pressOff, { passive: true });
+    });
+
     var link = el('a', 'item__link');
     link.href = e.href;
     link.setAttribute('aria-label', e.name);
     link.addEventListener('click', function (ev) {
+      /* the tap that ended a long press must not also open the row */
+      if (pressed) { pressed = false; ev.preventDefault(); return; }
       if (state.picking || ev.ctrlKey || ev.metaKey || ev.shiftKey) {
         ev.preventDefault();
         toggleSel(e, i, ev.shiftKey);

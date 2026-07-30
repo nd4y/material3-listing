@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- bump ?v= on every asset change: proxies and browsers cache these, and a
      stale css/js pair is the one way this can break after an update -->
-<link rel="stylesheet" href="/.m3listing/m3listing.css?v=7">
+<link rel="stylesheet" href="/.m3listing/m3listing.css?v=8">
 
 <script>
 /* Runs before paint: marks the document as JS-capable (so a no-JS client
@@ -32,8 +32,8 @@ window.M3LISTING = {
 };
 /* --------------------------------------------------------------------- */
 </script>
-<script defer src="/.m3listing/m3listing-probe.js?v=7"></script>
-<script defer src="/.m3listing/m3listing.js?v=7"></script>
+<script defer src="/.m3listing/m3listing-probe.js?v=8"></script>
+<script defer src="/.m3listing/m3listing.js?v=8"></script>
 </head>
 
 <body>
@@ -51,10 +51,6 @@ window.M3LISTING = {
       </a>
       <button class="rail-item" id="m3l-up" type="button">
         <span class="rail-item__ico"><span class="gs">arrow_upward</span></span>
-        <span class="rail-item__lbl"></span>
-      </button>
-      <button class="rail-item" id="m3l-view" type="button">
-        <span class="rail-item__ico"><span class="gs">grid_view</span></span>
         <span class="rail-item__lbl"></span>
       </button>
       <button class="rail-item" id="m3l-pick" type="button" aria-pressed="false">
@@ -122,11 +118,16 @@ window.M3LISTING = {
     </div>
   </section>
 
-  <nav class="tabs" role="group" aria-label="sort">
-    <button class="tab" type="button" data-sort="name" aria-pressed="true"></button>
-    <button class="tab" type="button" data-sort="date" aria-pressed="false"></button>
-    <button class="tab" type="button" data-sort="size" aria-pressed="false"></button>
-  </nav>
+  <div class="listbar">
+    <nav class="tabs" role="group" aria-label="sort">
+      <button class="tab" type="button" data-sort="name" aria-pressed="true"></button>
+      <button class="tab" type="button" data-sort="date" aria-pressed="false"></button>
+      <button class="tab" type="button" data-sort="size" aria-pressed="false"></button>
+    </nav>
+    <!-- the view switch sits at the head of the list it switches, the way
+         a file manager puts it, rather than in the rail -->
+    <button class="viewbtn" id="m3l-view" type="button"><span class="gs">grid_view</span></button>
+  </div>
 
   <main class="list"></main>
 

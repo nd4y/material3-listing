@@ -250,7 +250,8 @@ collect 429s instead of answers.
 - Type-ahead: typing letters jumps to the first matching name
 - A "new" badge on anything modified in the last few days
 - Sort by name, date or size as tabs; click the active tab to flip direction; folders first
-- List and grid views, remembered per browser
+- List and grid views, remembered per browser; the switch sits at the right of the sort
+  strip, at the head of the list it switches, the way a file manager puts it
 - Light / dark / follow-system theme, remembered per browser, chosen from a menu that
   ticks the active option and says which way the system currently leans
 - Navigation rail on desktop, bottom bar under 768px — the site's own adaptive split
@@ -259,8 +260,10 @@ collect 429s instead of answers.
 - Per-row copy-link and download buttons
 - **Multi-select and batch download** — the leading chip is also the checkbox (it turns into
   a tick on hover), `Ctrl`/`⌘`+click and `Shift`+click work on the row, `Ctrl`/`⌘`+`A` takes
-  everything on screen, and the rail's *Select* button turns on a touch-friendly picking
-  mode. A floating action bar then downloads the selected files or copies all their links.
+  everything on screen, the rail's *Select* button turns on a picking mode for pointerless
+  work, and on a phone — where the bottom bar has no room for it — a long press on a row
+  starts selection. A floating action bar then downloads the selected files or copies all
+  their links.
   Downloads are fired one at a time ~350 ms apart, which keeps the browser's
   "allow multiple downloads?" question to a single prompt. There is no backend, so there is
   no server-side zip — folders can be selected for their links but not downloaded
