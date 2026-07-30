@@ -183,11 +183,46 @@ would add is exact sizes — which `autoindex_exact_size on` gives for free.
 served from that location, not just listings. That is why the fallback path matters: for a
 real HTML file there is no `pre`, the script bails out and the file renders as itself.
 
+## Reading files without downloading them
+
+nginx serves static files with `Accept-Ranges: bytes`, and a few kilobytes from the head
+or the tail of a file is enough to answer most of what you want to know about it. The
+`info` button on a row opens a viewer with a properties panel filled in from
+[`dist/m3listing-probe.js`](dist/m3listing-probe.js):
+
+| format | read from | what comes back |
+| --- | --- | --- |
+| ZIP, APK, JAR, DOCX, EPUB | tail (~64 KB) | the full table of contents, sizes, compression ratio |
+| ISO 9660 | 2 KB at offset 32768 | volume label, publisher, block count, creation date |
+| JPEG, PNG, GIF, WebP, BMP, AVIF | head | dimensions, bit depth, and EXIF for JPEG |
+| MP4, MOV, M4A | head, tail if not faststart | duration, resolution, per-track codecs |
+| Matroska, WebM | head | duration, title, tracks with codec, language and channels |
+| MP3 | head + tail | ID3 tags, bitrate, VBR flag, embedded cover art |
+| FLAC | head | exact duration, sample rate, tags, cover art |
+
+Probe requests are serialised in a queue, because a share behind nginx often caps
+concurrent connections per client for large files and a burst of parallel probes would
+collect 429s instead of answers.
+
 ## Features
 
+- **Navigation without a reload** — directories are fetched and swapped in place, with
+  the History API and a loading line, so browsing is instant
+- **Recursive search** across the whole tree, walked in the background at a bounded
+  concurrency, with each hit showing the directory it came from
+- **Directory sizes on demand** — the ruler button on a directory row walks it and
+  reports the real total, live
+- **A viewer overlay** for pictures, video, audio, PDF and text, with `←`/`→` between
+  files in the listing and auto-advance for media
+- **Thumbnails** for pictures, loaded lazily as rows come into view
+- **A QR code** for any file's link, generated in the page — nothing leaves the browser
+- Filter chips per file family, built from what the directory actually contains
 - Search panel collapsed by default; the rail's search button, `/` or `Ctrl`/`⌘`+`K`
   expand it (height/opacity, the site's own container transition), `Esc` closes and clears
-- Instant substring matching with highlighting
+- Instant substring matching with highlighting, and the query is mirrored into `?q=`
+  so a search is a shareable link
+- Type-ahead: typing letters jumps to the first matching name
+- A "new" badge on anything modified in the last few days
 - Sort by name, date or size as tabs; click the active tab to flip direction; folders first
 - List and grid views, remembered per browser
 - Light / dark / follow-system theme, remembered per browser
@@ -213,10 +248,15 @@ real HTML file there is no `pre`, the script bails out and the file renders as i
 pwsh tools/build-demo.ps1        # demo/index.html = top + a mock autoindex + bot
 py -m http.server 8777 --directory demo
 node tools/shoot.mjs http://localhost:8777/ screenshots
-node tools/test-motion.mjs http://localhost:8777/
+node tools/test-motion.mjs http://localhost:8777/          # 42 checks
+node tools/test-probe.mjs http://your-share.example/       # needs real files
+node tools/qr-verify.mjs http://localhost:8777/ /tmp/qr    # then zbarimg
 ```
 
-Both node scripts drive headless Chrome over CDP with no npm dependencies.
+Every script drives headless Chrome over CDP with no npm dependencies.
+`test-motion` covers shape, motion, glyph coverage and the interaction paths;
+`test-probe` needs a deployment with actual files behind it, because that is the only
+place the Range parsers can be exercised.
 
 ## License
 

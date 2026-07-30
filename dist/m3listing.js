@@ -6,20 +6,23 @@
 (function () {
   'use strict';
 
+  var REPO = 'https://github.com/nd4y/material3-listing';
+
   /* ------------------------------------------------------------------
      Config — override by defining window.M3LISTING before this script.
      ------------------------------------------------------------------ */
-  var REPO = 'https://github.com/nd4y/material3-listing';
-
   var CFG = Object.assign({
     title: null,                      // brand name; defaults to the hostname
-    repoUrl: REPO,                    // credit link in the footer
+    repoUrl: REPO,                    // credit link in the rail
     lang: 'auto',                     // 'auto' | 'ru' | 'en'
+    newDays: 7,                       // "new" badge window
+    thumbMaxMB: 6,                    // biggest picture worth a thumbnail
+    crawlConcurrency: 3,              // parallel requests when walking the tree
+    crawlMaxDirs: 3000,               // runaway guard
     hide: ['@eaDir', '.betterlisting', '.m3listing', 'Thumbs.db',
            '.DS_Store', 'desktop.ini', '#recycle', '#snapshot']
   }, window.M3LISTING || {});
 
-  /* `siteName` was the old name for `title` */
   var BRAND = CFG.title || CFG.siteName || location.host;
 
   /* ------------------------------------------------------------------
@@ -29,26 +32,78 @@
     ru: {
       search: 'Поиск в этом каталоге', up: 'Наверх', root: 'Корень', home: 'Корень',
       name: 'Имя', date: 'Дата', size: 'Размер', theme: 'Тема',
-      find: 'Поиск', close: 'Закрыть',
+      find: 'Поиск', close: 'Закрыть', source: 'Исходники',
       viewList: 'Список', viewGrid: 'Сетка',
       copy: 'Скопировать ссылку', download: 'Скачать', copied: 'Ссылка скопирована',
-      pick: 'Выбрать', selected: 'Выбрано:', dl: 'Скачать', links: 'Ссылки',
+      props: 'Свойства', pick: 'Выбрать', selected: 'Выбрано:',
+      dl: 'Скачать', links: 'Ссылки', asList: 'Списком',
       dlStarted: 'Загрузка: {n}', copiedN: 'Скопировано ссылок: {n}',
+      copiedList: 'Список скопирован',
       nothing: 'Ничего не найдено', emptyDir: 'Каталог пуст', clear: 'Очистить',
       dirs: ['каталог', 'каталога', 'каталогов'], files: ['файл', 'файла', 'файлов'],
-      folder: 'каталог', empty: 'пусто'
+      folder: 'каталог', empty: 'пусто', fresh: 'новое',
+      deep: 'Искать во всех подкаталогах', deepStop: 'Остановить',
+      deepDone: 'Просмотрено каталогов: {n}', deepIn: 'в {p}',
+      calcSize: 'Посчитать размер', calculating: 'считаю…',
+      qr: 'QR-код', noPreview: 'Предпросмотр недоступен',
+      loading: 'Читаю…', probeFail: 'Свойства прочитать не удалось',
+      inside: 'Внутри архива', more: 'и ещё {n}',
+      f: {
+        format: 'Формат', dim: 'Размер изображения', depth: 'Глубина цвета',
+        color: 'Цветовая модель', duration: 'Длительность', tracks: 'Дорожки',
+        container: 'Контейнер', video: 'Видео', audio: 'Аудио', subs: 'Субтитры',
+        bitrate: 'Битрейт', rate: 'Частота', channels: 'Каналы', bits: 'Разрядность',
+        title: 'Название', artist: 'Исполнитель', album: 'Альбом', year: 'Год',
+        track: 'Трек', genre: 'Жанр', label: 'Метка тома', system: 'Система',
+        publisher: 'Издатель', preparer: 'Подготовил', application: 'Приложение',
+        volumeSize: 'Объём образа', created: 'Создан', blocks: 'Блоков',
+        entries: 'Файлов внутри', totalSize: 'Распакованный размер',
+        packedSize: 'Упакованный размер', ratio: 'Сжатие',
+        make: 'Камера', model: 'Модель', taken: 'Снято', exposure: 'Выдержка',
+        fnumber: 'Диафрагма', iso: 'ISO', focal: 'Фокусное', lens: 'Объектив',
+        muxer: 'Мультиплексор', vbr: 'Переменный битрейт'
+      },
+      groups: { all: 'Все', dir: 'Каталоги', pic: 'Картинки', vid: 'Видео',
+                snd: 'Аудио', arch: 'Архивы', doc: 'Документы', code: 'Код',
+                bin: 'Программы', other: 'Прочее' }
     },
     en: {
-      search: 'Search this folder', up: 'Up', root: 'Root', home: 'Root',
+      search: 'Search this directory', up: 'Up', root: 'Root', home: 'Root',
       name: 'Name', date: 'Date', size: 'Size', theme: 'Theme',
-      find: 'Search', close: 'Close',
+      find: 'Search', close: 'Close', source: 'Source',
       viewList: 'List', viewGrid: 'Grid',
       copy: 'Copy link', download: 'Download', copied: 'Link copied',
-      pick: 'Select', selected: 'Selected:', dl: 'Download', links: 'Links',
+      props: 'Properties', pick: 'Select', selected: 'Selected:',
+      dl: 'Download', links: 'Links', asList: 'As list',
       dlStarted: 'Downloading {n}', copiedN: '{n} links copied',
-      nothing: 'Nothing found', emptyDir: 'This folder is empty', clear: 'Clear',
-      dirs: ['folder', 'folders', 'folders'], files: ['file', 'files', 'files'],
-      folder: 'folder', empty: 'empty'
+      copiedList: 'List copied',
+      nothing: 'Nothing found', emptyDir: 'This directory is empty', clear: 'Clear',
+      dirs: ['directory', 'directories', 'directories'], files: ['file', 'files', 'files'],
+      folder: 'directory', empty: 'empty', fresh: 'new',
+      deep: 'Search all subdirectories', deepStop: 'Stop',
+      deepDone: '{n} directories scanned', deepIn: 'in {p}',
+      calcSize: 'Measure size', calculating: 'measuring…',
+      qr: 'QR code', noPreview: 'No preview available',
+      loading: 'Reading…', probeFail: 'Could not read the properties',
+      inside: 'Archive contents', more: 'and {n} more',
+      f: {
+        format: 'Format', dim: 'Dimensions', depth: 'Bit depth',
+        color: 'Colour model', duration: 'Duration', tracks: 'Tracks',
+        container: 'Container', video: 'Video', audio: 'Audio', subs: 'Subtitles',
+        bitrate: 'Bitrate', rate: 'Sample rate', channels: 'Channels', bits: 'Bits',
+        title: 'Title', artist: 'Artist', album: 'Album', year: 'Year',
+        track: 'Track', genre: 'Genre', label: 'Volume label', system: 'System',
+        publisher: 'Publisher', preparer: 'Prepared by', application: 'Application',
+        volumeSize: 'Image size', created: 'Created', blocks: 'Blocks',
+        entries: 'Files inside', totalSize: 'Unpacked size',
+        packedSize: 'Packed size', ratio: 'Compression',
+        make: 'Camera', model: 'Model', taken: 'Taken', exposure: 'Exposure',
+        fnumber: 'Aperture', iso: 'ISO', focal: 'Focal length', lens: 'Lens',
+        muxer: 'Muxer', vbr: 'Variable bitrate'
+      },
+      groups: { all: 'All', dir: 'Directories', pic: 'Pictures', vid: 'Video',
+                snd: 'Audio', arch: 'Archives', doc: 'Documents', code: 'Code',
+                bin: 'Programs', other: 'Other' }
     }
   };
   var LANG = CFG.lang === 'auto'
@@ -65,16 +120,15 @@
     if (b === 1) return forms[0];
     return forms[2];
   }
+  function fill(s, o) {
+    return s.replace(/\{(\w+)\}/g, function (_, k) { return o[k]; });
+  }
 
   /* ------------------------------------------------------------------
-     Icons.
-
-     Primary rendering is the Google Symbols webfont — the same face
-     m3.material.io uses — as ligature text, so the FILL axis can be
-     animated on hover exactly like the site does it. If the font does
-     not arrive (offline, blocked, privacy setup with the @import
-     removed) every glyph is swapped for the inline SVG below, which is
-     the same Material Symbols artwork.
+     Icons. Primary rendering is the Google Symbols webfont — the same
+     face m3.material.io uses — as ligature text, so the FILL axis can be
+     animated on hover exactly like the site does it. If the font never
+     arrives, every glyph is swapped for the inline SVG below.
      ------------------------------------------------------------------ */
   var P = {
     folder: 'M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h207q16 0 30.5 6t25.5 17l57 57h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z',
@@ -82,6 +136,7 @@
     home: 'M240-200h120v-200q0-17 11.5-28.5T400-440h160q17 0 28.5 11.5T600-400v200h120v-360L480-740 240-560v360Zm-80 0v-360q0-19 8.5-36t23.5-28l240-180q21-16 48-16t48 16l240 180q15 11 23.5 28t8.5 36v360q0 33-23.5 56.5T720-120H560q-17 0-28.5-11.5T520-160v-200h-80v200q0 17-11.5 28.5T400-120H240q-33 0-56.5-23.5T160-200Z',
     arrow_upward: 'M440-647 244-451q-12 12-28 11.5T188-452q-11-12-11.5-28t11.5-28l264-264q6-6 13-8.5t15-2.5q8 0 15 2.5t13 8.5l264 264q11 11 11 27.5T772-452q-12 12-28.5 12T715-452L520-647v447q0 17-11.5 28.5T480-160q-17 0-28.5-11.5T440-200v-447Z',
     arrow_downward: 'M440-313v-447q0-17 11.5-28.5T480-800q17 0 28.5 11.5T520-760v447l196-196q12-12 28-11.5t28 12.5q11 12 11.5 28T772-452L508-188q-6 6-13 8.5t-15 2.5q-8 0-15-2.5t-13-8.5L188-452q-11-11-11-27.5t11-28.5q12-12 28.5-12t28.5 12l195 195Z',
+    arrow_back: 'M400-647 244-491q-11 11-28 11t-28-11q-11-11-11-28t11-28l184-184q6-6 13-8.5t15-2.5q8 0 15 2.5t13 8.5l184 184q11 11 11 28t-11 28q-11 11-28 11t-28-11L400-647Z',
     search: 'M380-320q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l224 224q11 11 11 28t-11 28q-11 11-28 11t-28-11L532-372q-30 24-69 38t-83 14Zm0-80q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z',
     close: 'M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z',
     grid_view: 'M200-520q-33 0-56.5-23.5T120-600v-160q0-33 23.5-56.5T200-840h160q33 0 56.5 23.5T440-760v160q0 33-23.5 56.5T360-520H200Zm0 400q-33 0-56.5-23.5T120-200v-160q0-33 23.5-56.5T200-440h160q33 0 56.5 23.5T440-360v160q0 33-23.5 56.5T360-120H200Zm400-400q-33 0-56.5-23.5T520-600v-160q0-33 23.5-56.5T600-840h160q33 0 56.5 23.5T840-760v160q0 33-23.5 56.5T760-520H600Zm0 400q-33 0-56.5-23.5T520-200v-160q0-33 23.5-56.5T600-440h160q33 0 56.5 23.5T840-360v160q0 33-23.5 56.5T760-120H600ZM200-600h160v-160H200v160Zm400 0h160v-160H600v160Zm0 400h160v-160H600v160Zm-400 0h160v-160H200v160Z',
@@ -91,6 +146,7 @@
     contrast: 'M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm40-82q122-15 201-105t79-213q0-123-79-213t-201-105v636Z',
     download: 'M480-337q-8 0-15-2.5t-13-8.5L308-492q-12-12-11.5-28t11.5-28q12-12 28.5-12.5T365-549l75 75v-286q0-17 11.5-28.5T480-800q17 0 28.5 11.5T520-760v286l75-75q12-12 28.5-11.5T652-548q11 12 11.5 28T652-492L508-348q-6 6-13 8.5t-15 2.5ZM240-160q-33 0-56.5-23.5T160-240v-80q0-17 11.5-28.5T200-360q17 0 28.5 11.5T240-320v80h480v-80q0-17 11.5-28.5T760-360q17 0 28.5 11.5T800-320v80q0 33-23.5 56.5T720-160H240Z',
     chevron_right: 'M504-480 348-636q-11-11-11-28t11-28q11-11 28-11t28 11l184 184q6 6 8.5 13t2.5 15q0 8-2.5 15t-8.5 13L404-268q-11 11-28 11t-28-11q-11-11-11-28t11-28l156-156Z',
+    chevron_left: 'm456-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L372-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L456-480Z',
     link: 'M280-280q-83 0-141.5-58.5T80-480q0-83 58.5-141.5T280-680h120q17 0 28.5 11.5T440-640q0 17-11.5 28.5T400-600H280q-50 0-85 35t-35 85q0 50 35 85t85 35h120q17 0 28.5 11.5T440-320q0 17-11.5 28.5T400-280H280Zm80-160q-17 0-28.5-11.5T320-480q0-17 11.5-28.5T360-520h240q17 0 28.5 11.5T640-480q0 17-11.5 28.5T600-440H360Zm200 160q-17 0-28.5-11.5T520-320q0-17 11.5-28.5T560-360h120q50 0 85-35t35-85q0-50-35-85t-85-35H560q-17 0-28.5-11.5T520-640q0-17 11.5-28.5T560-680h120q83 0 141.5 58.5T880-480q0 83-58.5 141.5T680-280H560Z',
     description: 'M360-240h240q17 0 28.5-11.5T640-280q0-17-11.5-28.5T600-320H360q-17 0-28.5 11.5T320-280q0 17 11.5 28.5T360-240Zm0-160h240q17 0 28.5-11.5T640-440q0-17-11.5-28.5T600-480H360q-17 0-28.5 11.5T320-440q0 17 11.5 28.5T360-400ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h287q16 0 30.5 6t25.5 17l194 194q11 11 17 25.5t6 30.5v447q0 33-23.5 56.5T720-80H240Zm280-560v-160H240v640h480v-440H560q-17 0-28.5-11.5T520-640Z',
     draft: 'M240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h287q16 0 30.5 6t25.5 17l194 194q11 11 17 25.5t6 30.5v447q0 33-23.5 56.5T720-80H240Zm280-560v-160H240v640h480v-440H560q-17 0-28.5-11.5T520-640Z',
@@ -110,9 +166,15 @@
     font_download: 'M384-362h192l35 97q4 11 14 18t22 7q20 0 32.5-16.5T684-293L532-695q-5-11-15-18t-22-7h-30q-12 0-22 7t-15 18L276-293q-8 19 4 36t32 17q13 0 22.5-7t14.5-19l35-96Zm24-70 70-198h4l70 198H408ZM160-80q-33 0-56.5-23.5T80-160v-640q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v640q0 33-23.5 56.5T800-80H160Zm0-80h640v-640H160v640Z',
     database: 'M480-120q-151 0-255.5-46.5T120-280v-400q0-66 105.5-113T480-840q149 0 254.5 47T840-680v400q0 67-104.5 113.5T480-120Zm0-479q89 0 179-25.5T760-679q-11-29-100.5-55T480-760q-91 0-178.5 25.5T200-679q14 30 101.5 55T480-599Zm0 199q42 0 81-4t74.5-11.5q35.5-7.5 67-18.5t57.5-25v-120q-26 14-57.5 25t-67 18.5Q600-528 561-524t-81 4q-42 0-82-4t-75.5-11.5Q287-543 256-554t-56-25v120q25 14 56 25t66.5 18.5Q358-408 398-404t82 4Zm0 200q46 0 93.5-7t87.5-18.5q40-11.5 67-26t32-29.5v-98q-26 14-57.5 25t-67 18.5Q600-328 561-324t-81 4q-42 0-82-4t-75.5-11.5Q287-343 256-354t-56-25v99q5 15 31.5 29t66.5 25.5q40 11.5 88 18.5t94 7Z',
     key: 'M280-400q-33 0-56.5-23.5T200-480q0-33 23.5-56.5T280-560q33 0 56.5 23.5T360-480q0 33-23.5 56.5T280-400Zm0 160q-100 0-170-70T40-480q0-100 70-170t170-70q67 0 121.5 33t86.5 87h335q8 0 15.5 3t13.5 9l80 80q6 6 8.5 13t2.5 15q0 8-2.5 15t-8.5 13L805-325q-5 5-12 8t-14 4q-7 1-14-1t-13-7l-52-39-57 43q-5 4-11 6t-12 2q-6 0-12.5-2t-11.5-6l-61-43h-47q-32 54-86.5 87T280-240Zm0-80q56 0 98.5-34t56.5-86h125l58 41v.5-.5l82-61 71 55 75-75h-.5.5l-40-40v-.5.5H435q-14-52-56.5-86T280-640q-66 0-113 47t-47 113q0 66 47 113t113 47Z',
+    settings: 'M433-80q-27 0-46.5-18T363-142l-9-66q-13-5-24.5-12T307-235l-62 26q-25 11-50 2t-39-32l-47-82q-14-23-8-49t27-43l53-40q-1-7-1-13.5v-27q0-6.5 1-13.5l-53-40q-21-17-27-43t8-49l47-82q14-23 39-32t50 2l62 26q11-8 23-15t24-12l9-66q4-26 23.5-44t46.5-18h94q27 0 46.5 18t23.5 44l9 66q13 5 24.5 12t22.5 15l62-26q25-11 50-2t39 32l47 82q14 23 8 49t-27 43l-53 40q1 7 1 13.5v27q0 6.5-2 13.5l53 40q21 17 27 43t-8 49l-48 82q-14 23-39 32t-50-2l-60-26q-11 8-23 15t-24 12l-9 66q-4 26-23.5 44T527-80h-94Zm7-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Z',
     check: 'm382-354 339-339q12-12 28-12t28 12q12 12 12 28.5T777-636L410-268q-12 12-28 12t-28-12L182-440q-12-12-11.5-28.5T183-497q12-12 28.5-12t28.5 12l142 143Z',
     check_box: 'm424-424-86-86q-11-11-28-11t-28 11q-11 11-11 28t11 28l114 114q12 12 28 12t28-12l226-226q11-11 11-28t-11-28q-11-11-28-11t-28 11L424-424ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Z',
-    settings: 'M433-80q-27 0-46.5-18T363-142l-9-66q-13-5-24.5-12T307-235l-62 26q-25 11-50 2t-39-32l-47-82q-14-23-8-49t27-43l53-40q-1-7-1-13.5v-27q0-6.5 1-13.5l-53-40q-21-17-27-43t8-49l47-82q14-23 39-32t50 2l62 26q11-8 23-15t24-12l9-66q4-26 23.5-44t46.5-18h94q27 0 46.5 18t23.5 44l9 66q13 5 24.5 12t22.5 15l62-26q25-11 50-2t39 32l47 82q14 23 8 49t-27 43l-53 40q1 7 1 13.5v27q0 6.5-2 13.5l53 40q21 17 27 43t-8 49l-48 82q-14 23-39 32t-50-2l-60-26q-11 8-23 15t-24 12l-9 66q-4 26-23.5 44T527-80h-94Zm7-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Z'
+    info: 'M480-280q17 0 28.5-11.5T520-320v-160q0-17-11.5-28.5T480-520q-17 0-28.5 11.5T440-480v160q0 17 11.5 28.5T480-280Zm0-320q17 0 28.5-11.5T520-640q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640q0 17 11.5 28.5T480-600Zm0 520q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Z',
+    travel_explore: 'M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 14-1 27t-3 26q-19-8-38.5-12t-40.5-4q1-8 1.5-16.5t.5-16.5h-158q-2 27-6.5 52.5T617-374q-18 5-34.5 12.5T551-343q10-31 16-63.5t8-69.5H385q4 45 12 85t20 71q-14 11-25.5 24T371-269q-20-45-32-98t-16-109H165q22 71 75 122t124 71q6 22 15.5 41.5T402-206q-16-2-31-5t-30-8q-58-20-105.5-57t-81-86.5Q120-412 100-471.5T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880Zm0 80q-27 39-46.5 82T402-628h156q-12-45-31.5-88T480-800Zm-83 10q-21 33-36.5 71T335-628H206q35-59 89.5-100T397-790Zm166 0q47 19 101.5 60T754-628H625q-10-43-25.5-81T563-790ZM165-548h158q1-20 2.5-40t4.5-40H171q-3 20-4.5 40t-1.5 40Zm570 0q0-20-1.5-40t-4.5-40H637q3 20 4.5 40t2.5 40h91ZM714-40l-84-84q-19 11-40 17.5t-44 6.5q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 23-6.5 44T682-176l84 84q11 11 11 28t-11 28q-11 11-26 11t-26-11ZM546-180q33 0 56.5-23.5T626-260q0-33-23.5-56.5T546-340q-33 0-56.5 23.5T466-260q0 33 23.5 56.5T546-180Z',
+    straighten: 'M120-320q-33 0-56.5-23.5T40-400v-160q0-33 23.5-56.5T120-640h720q33 0 56.5 23.5T920-560v160q0 33-23.5 56.5T840-320H120Zm0-80h720v-160H720v80q0 17-11.5 28.5T680-440q-17 0-28.5-11.5T640-480v-80h-80v80q0 17-11.5 28.5T520-440q-17 0-28.5-11.5T480-480v-80h-80v80q0 17-11.5 28.5T360-440q-17 0-28.5-11.5T320-480v-80h-80v80q0 17-11.5 28.5T200-440q-17 0-28.5-11.5T160-480v-80h-40v160Zm360-80Z',
+    qr_code_2: 'M680-160v-80h80v80h-80Zm-80-80v-80h80v80h-80Zm160-80v-80h80v80h-80Zm-80-80v-80h80v80h-80Zm-80 80v-80h80v80h-80Zm-160 160v-80h80v80h-80Zm-80-80v-80h80v80h-80Zm320-320v-80h80v80h-80ZM200-440q-17 0-28.5-11.5T160-480v-40h-40q-17 0-28.5-11.5T80-560q0-17 11.5-28.5T120-600h40v-40q0-17 11.5-28.5T200-680q17 0 28.5 11.5T240-640v40h40q17 0 28.5 11.5T320-560q0 17-11.5 28.5T280-520h-40v40q0 17-11.5 28.5T200-440Zm-40 280q-33 0-56.5-23.5T80-240v-120q0-17 11.5-28.5T120-400q17 0 28.5 11.5T160-360v120h120q17 0 28.5 11.5T320-200q0 17-11.5 28.5T280-160H160Zm520 0q-17 0-28.5-11.5T640-200q0-17 11.5-28.5T680-240h120v-120q0-17 11.5-28.5T840-400q17 0 28.5 11.5T880-360v120q0 33-23.5 56.5T800-160H680ZM120-560q-17 0-28.5-11.5T80-600v-120q0-33 23.5-56.5T160-800h120q17 0 28.5 11.5T320-760q0 17-11.5 28.5T280-720H160v120q0 17-11.5 28.5T120-560Zm720 0q-17 0-28.5-11.5T800-600v-120H680q-17 0-28.5-11.5T640-760q0-17 11.5-28.5T680-800h120q33 0 56.5 23.5T880-720v120q0 17-11.5 28.5T840-560Z',
+    play_arrow: 'M320-273v-414q0-17 12-28.5t28-11.5q5 0 10.5 1.5T381-721l326 208q9 6 13.5 15t4.5 18q0 9-4.5 18T707-447L381-239q-5 3-10.5 4.5T360-233q-16 0-28-11.5T320-273Z',
+    format_list_bulleted: 'M360-200q-17 0-28.5-11.5T320-240q0-17 11.5-28.5T360-280h440q17 0 28.5 11.5T840-240q0 17-11.5 28.5T800-200H360ZM200-200q-17 0-28.5-11.5T160-240q0-17 11.5-28.5T200-280q17 0 28.5 11.5T240-240q0 17-11.5 28.5T200-200Zm160-240q-17 0-28.5-11.5T320-480q0-17 11.5-28.5T360-520h440q17 0 28.5 11.5T840-480q0 17-11.5 28.5T800-440H360Zm-160 0q-17 0-28.5-11.5T160-480q0-17 11.5-28.5T200-520q17 0 28.5 11.5T240-480q0 17-11.5 28.5T200-440Zm160-240q-17 0-28.5-11.5T320-720q0-17 11.5-28.5T360-760h440q17 0 28.5 11.5T840-720q0 17-11.5 28.5T800-680H360Zm-160 0q-17 0-28.5-11.5T160-720q0-17 11.5-28.5T200-760q17 0 28.5 11.5T240-720q0 17-11.5 28.5T200-680Z'
   };
 
   var GS_MODE = 'pending';        // 'pending' | 'font' | 'svg'
@@ -143,8 +205,6 @@
     span.appendChild(s);
   }
 
-  /* Ask for the face, then decide once. Until then the CSS keeps every
-     ligature invisible, so the glyph names never flash as words. */
   function resolveIcons() {
     var finish = function (ok) {
       if (GS_MODE !== 'pending') return;
@@ -273,13 +333,22 @@
   /* sheets and slides */
   reg('xls xlsx xlsm ods numbers',    'table',         'a4', 'table');
   reg('csv tsv',                      'grid_on',       'a4', 'table');
-  reg('ppt pptx odp key-note',        'slideshow',     'a7', 'slideshow');
+  reg('ppt pptx odp',                 'slideshow',     'a7', 'slideshow');
 
   /* the rest */
   reg('ttf otf woff woff2 eot fon',   'font_download', 'a5', 'font_download');
   reg('srt ass ssa sub vtt idx',      'subtitles',     'a5', 'subtitles');
-  reg('torrent magnet',               'link',          'a5', 'link');
-  reg('lnk url webloc',               'link',          'a5', 'link');
+  reg('torrent magnet lnk url webloc','link',          'a5', 'link');
+
+  /* the filter chips group by family, derived from the fallback artwork */
+  var GRP = {
+    image: 'pic', movie: 'vid', music_note: 'snd',
+    folder_zip: 'arch', album: 'arch',
+    deployed_code: 'bin', terminal: 'bin',
+    code: 'code', settings: 'code', database: 'code', key: 'code',
+    description: 'doc', text_snippet: 'doc', picture_as_pdf: 'doc',
+    table: 'doc', slideshow: 'doc'
+  };
 
   /* ------------------------------------------------------------------
      Helpers
@@ -336,23 +405,36 @@
     return EXT[ext(entry.name)] || FILE_KIND;
   }
 
+  function groupOf(entry) {
+    if (entry.isDir) return 'dir';
+    var k = EXT[ext(entry.name)];
+    return k ? (GRP[k.fb] || 'other') : 'other';
+  }
+
+  function isFresh(e) {
+    return e.date && (Date.now() - e.date.getTime()) < CFG.newDays * 864e5;
+  }
+
+  function abs(href) { return new URL(href, location.href).href; }
+
   /* every ligature the page can ask the webfont for — the test suite
      renders each one and fails if it comes back as letters */
   window.M3L_GLYPHS = (function () {
-    var seen = { folder: 1, draft: 1 };
+    var seen = {};
     Object.keys(EXT).forEach(function (e) { seen[EXT[e].icon] = 1; });
-    ['folder_open', 'home', 'arrow_upward', 'arrow_downward', 'search', 'close',
-     'grid_view', 'view_list', 'check_box', 'check', 'contrast', 'light_mode',
-     'dark_mode', 'download', 'chevron_right', 'link'].forEach(function (n) { seen[n] = 1; });
+    Object.keys(P).forEach(function (n) { seen[n] = 1; });
+    ['folder_open', 'check_box', 'info', 'travel_explore', 'straighten',
+     'qr_code_2', 'play_arrow', 'format_list_bulleted', 'chevron_left',
+     'arrow_back', 'code'].forEach(function (n) { seen[n] = 1; });
     return Object.keys(seen);
   })();
 
   /* ------------------------------------------------------------------
-     Read the nginx autoindex output
+     Reading an autoindex listing
      ------------------------------------------------------------------ */
   var META_RE = /(\d{2})-([A-Za-z]{3})-(\d{4})\s+(\d{2}):(\d{2})\s+(\S+)\s*$/;
 
-  function readEntries(pre) {
+  function readEntries(pre, baseUrl) {
     var out = [], parentHref = null;
     var links = pre.querySelectorAll('a');
 
@@ -377,7 +459,10 @@
         var s = isDir ? null : parseSize(m[6]);
         if (s) { size = s.bytes; exact = s.exact; }
       }
-      out.push({ href: href, name: name, isDir: isDir, date: date, size: size, exact: exact });
+      out.push({
+        href: baseUrl ? new URL(href, baseUrl).href : href,
+        name: name, isDir: isDir, date: date, size: size, exact: exact
+      });
     }
     return { entries: out, parentHref: parentHref };
   }
@@ -391,14 +476,19 @@
   };
 
   var state = {
+    path: '/',
     query: '',
+    group: 'all',
     sort: LS.get('sort', 'name'),
     desc: LS.get('desc', '0') === '1',
     view: LS.get('view', 'list'),
     cursor: -1,
     entries: [],
     visible: [],
-    sel: Object.create(null),   // href → true
+    parentHref: null,
+    deep: null,            // active recursive search
+    deepHits: null,        // results of a recursive search
+    sel: Object.create(null),
     selN: 0,
     picking: false,
     anchor: null
@@ -406,107 +496,86 @@
 
   var $ = {};
 
-  /* ------------------------------------------------------------------
+  /* ==================================================================
      Boot
-     ------------------------------------------------------------------ */
+     ================================================================== */
   function boot() {
     var raw = document.querySelector('.rawwrap');
     var pre = raw && raw.querySelector('pre');
     var ui = document.querySelector('.m3l');
     if (!raw || !pre || !ui) { bail(); return; }
 
+    cacheRefs(ui);
+    wireChrome(ui);
+
     var read = readEntries(pre);
-    state.entries = read.entries;
+    applyListing(pathFromDoc(raw), read.entries, read.parentHref);
 
-    var h1 = raw.querySelector('h1');
-    var path = h1 ? (h1.textContent || '').replace(/^Index of\s*/, '').trim() : '';
-    if (!path) { try { path = decodeURIComponent(location.pathname); } catch (e) { path = location.pathname; } }
-    if (path.charAt(0) !== '/') path = '/' + path;
-    if (path.charAt(path.length - 1) !== '/') path += '/';
+    var q = new URLSearchParams(location.search).get('q');
+    if (q) { $.q.value = q; state.query = q.trim(); $.clear.hidden = !q; syncSearch(true); }
 
-    buildChrome(ui, path, read.parentHref);
     render();
     resolveIcons();
     document.documentElement.classList.add('m3l-ready');
   }
 
-  function bail() {
-    document.documentElement.classList.remove('m3l-js');
+  function bail() { document.documentElement.classList.remove('m3l-js'); }
+
+  function pathFromDoc(scope) {
+    var h1 = scope.querySelector('h1');
+    var p = h1 ? (h1.textContent || '').replace(/^Index of\s*/, '').trim() : '';
+    if (!p) { try { p = decodeURIComponent(location.pathname); } catch (e) { p = location.pathname; } }
+    if (p.charAt(0) !== '/') p = '/' + p;
+    if (p.charAt(p.length - 1) !== '/') p += '/';
+    return p;
   }
 
-  /* ------------------------------------------------------------------
-     Chrome
-     ------------------------------------------------------------------ */
-  function buildChrome(ui, path, parentHref) {
-    var segs = path.split('/').filter(Boolean);
-    var current = segs.length ? segs[segs.length - 1] : BRAND;
-
-    document.title = segs.length ? current + ' · ' + BRAND : BRAND;
-
-    /* hero */
+  function cacheRefs(ui) {
+    $.ui = ui;
     $.title = ui.querySelector('.hero__title');
-    $.title.textContent = current;
-    var sub = ui.querySelector('.hero__sub');
-    sub.textContent = path;
-    sub.hidden = segs.length === 0;   /* "/" under the site name says nothing */
-
-    /* breadcrumbs */
-    var crumbs = ui.querySelector('.crumbs');
-    crumbs.textContent = '';
-    var rootA = el('a', null, BRAND);
-    rootA.href = '/';
-    crumbs.appendChild(rootA);
-    var acc = '';
-    segs.forEach(function (s, idx) {
-      acc += '/' + encodeURIComponent(s);
-      var sep = el('span', 'sep');
-      sep.appendChild(icon('chevron_right'));
-      crumbs.appendChild(sep);
-      if (idx === segs.length - 1) {
-        crumbs.appendChild(el('span', 'cur', s));
-      } else {
-        var a = el('a', null, s);
-        a.href = acc + '/';
-        crumbs.appendChild(a);
-      }
-    });
-    crumbs.scrollLeft = crumbs.scrollWidth;
-
-    /* rail */
-    var home = document.getElementById('m3l-home');
-    home.querySelector('.rail-item__lbl').textContent = T.home;
-    home.classList.toggle('is-on', segs.length === 0);
-
+    $.sub = ui.querySelector('.hero__sub');
+    $.stats = ui.querySelector('.stats');
+    $.crumbs = ui.querySelector('.crumbs');
+    $.list = ui.querySelector('.list');
+    $.empty = ui.querySelector('.empty');
+    $.tabs = ui.querySelector('.tabs');
+    $.chips = ui.querySelector('.chips');
+    $.progress = ui.querySelector('.progress');
+    $.deepBar = ui.querySelector('.deepbar');
+    $.deepBtn = ui.querySelector('.deepbtn');
+    $.q = document.getElementById('m3l-q');
+    $.clear = document.getElementById('m3l-clear');
+    $.wrap = document.getElementById('m3l-searchwrap');
+    $.fab = document.getElementById('m3l-searchfab');
+    $.home = document.getElementById('m3l-home');
     $.up = document.getElementById('m3l-up');
-    $.up.querySelector('.rail-item__lbl').textContent = T.up;
-    if (!segs.length) $.up.disabled = true;
-    else $.up.addEventListener('click', function () { location.href = parentHref || '../'; });
-
     $.view = document.getElementById('m3l-view');
+    $.pick = document.getElementById('m3l-pick');
+    $.theme = document.getElementById('m3l-theme');
+    $.repo = document.getElementById('m3l-repo');
+    $.selbar = document.querySelector('.selbar');
+    $.seldl = document.getElementById('m3l-seldl');
+    $.selcopy = document.getElementById('m3l-selcopy');
+    $.sellist = document.getElementById('m3l-sellist');
+    $.viewer = document.querySelector('.viewer');
+  }
+
+  function wireChrome(ui) {
+    /* rail */
+    $.home.querySelector('.rail-item__lbl').textContent = T.home;
+    $.home.addEventListener('click', function (ev) { ev.preventDefault(); go('/', true); });
+    $.up.querySelector('.rail-item__lbl').textContent = T.up;
+    $.up.addEventListener('click', function () {
+      if (state.parentHref) go(new URL(state.parentHref, location.href).href, true);
+    });
     $.view.addEventListener('click', function () {
       state.view = state.view === 'list' ? 'grid' : 'list';
       LS.set('view', state.view);
       syncView(); render();
     });
     syncView();
-
-    /* multi-select */
-    $.pick = document.getElementById('m3l-pick');
     $.pick.querySelector('.rail-item__lbl').textContent = T.pick;
     $.pick.addEventListener('click', function () { setPicking(!state.picking); });
-
-    $.selbar = document.querySelector('.selbar');
-    $.seldl = document.getElementById('m3l-seldl');
-    $.selcopy = document.getElementById('m3l-selcopy');
-    $.seldl.querySelector('.selbar__t').textContent = T.dl;
-    $.selcopy.querySelector('.selbar__t').textContent = T.links;
-    $.seldl.addEventListener('click', downloadSelected);
-    $.selcopy.addEventListener('click', copySelected);
-    document.getElementById('m3l-selclear').addEventListener('click', function () {
-      clearSel(); setPicking(false);
-    });
-
-    $.theme = document.getElementById('m3l-theme');
     $.theme.title = T.theme;
     $.theme.querySelector('.rail-item__lbl').textContent = T.theme;
     $.theme.addEventListener('click', function () {
@@ -518,31 +587,32 @@
     });
     syncTheme(LS.get('theme', 'auto'));
 
-    /* search — the panel is collapsed until the rail button opens it */
-    $.q = document.getElementById('m3l-q');
+    /* the credit lives in the rail, where the site keeps its own
+       secondary controls — a lone link under the list read as debris */
+    $.repo.href = CFG.repoUrl || REPO;
+    $.repo.title = (CFG.repoUrl || REPO).replace(/^https?:\/\//, '');
+    $.repo.querySelector('.rail-item__lbl').textContent = T.source;
+
+    /* search */
     $.q.placeholder = T.search;
-    $.clear = document.getElementById('m3l-clear');
     $.clear.title = T.clear;
-    $.wrap = document.getElementById('m3l-searchwrap');
-    $.fab = document.getElementById('m3l-searchfab');
     $.fab.querySelector('.rail-item__lbl').textContent = T.find;
     syncSearch(false);
-
-    $.q.addEventListener('input', function () {
-      state.query = $.q.value.trim();
-      state.cursor = -1;
-      $.clear.hidden = !state.query;
-      render();
-    });
+    $.q.addEventListener('input', onQuery);
     $.clear.addEventListener('click', function () {
-      $.q.value = ''; state.query = ''; $.clear.hidden = true; render(); $.q.focus();
+      $.q.value = ''; onQuery(); $.q.focus();
     });
     $.fab.addEventListener('click', function () {
       openSearch(!$.wrap.classList.contains('is-open'));
     });
 
+    /* deep search */
+    $.deepBtn.querySelector('.deepbtn__t').textContent = T.deep;
+    $.deepBtn.addEventListener('click', function () {
+      if (state.deep) stopDeep(); else startDeep();
+    });
+
     /* sort tabs */
-    $.tabs = ui.querySelector('.tabs');
     ['name', 'date', 'size'].forEach(function (k) {
       var b = $.tabs.querySelector('[data-sort="' + k + '"]');
       b.textContent = T[k];
@@ -556,14 +626,16 @@
     });
     syncSort();
 
-    /* footer */
-    var fa = ui.querySelector('.foot a');
-    fa.href = CFG.repoUrl || REPO;
-    fa.textContent = (CFG.repoUrl || REPO).replace(/^https?:\/\//, '');
-    fa.rel = 'noopener';
-    fa.target = '_blank';
-
-    /* empty state icon is already in the markup */
+    /* selection bar */
+    $.seldl.querySelector('.selbar__t').textContent = T.dl;
+    $.selcopy.querySelector('.selbar__t').textContent = T.links;
+    $.sellist.querySelector('.selbar__t').textContent = T.asList;
+    $.seldl.addEventListener('click', downloadSelected);
+    $.selcopy.addEventListener('click', copySelected);
+    $.sellist.addEventListener('click', copyAsList);
+    document.getElementById('m3l-selclear').addEventListener('click', function () {
+      clearSel(); setPicking(false);
+    });
 
     /* sticky shadow */
     var bar = ui.querySelector('.navbar');
@@ -572,30 +644,250 @@
     onScroll();
 
     document.addEventListener('keydown', onKey);
+    addEventListener('popstate', function () { go(location.href, false); });
+    wireViewer();
   }
 
-  function syncSort() {
-    ['name', 'date', 'size'].forEach(function (k) {
-      var b = $.tabs.querySelector('[data-sort="' + k + '"]');
-      var on = state.sort === k;
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
-      b.setAttribute('data-desc', on && state.desc ? '1' : '0');
+  /* ==================================================================
+     Navigation without a reload
+     ================================================================== */
+  var navSeq = 0;
+
+  function go(url, push) {
+    var seq = ++navSeq;
+    busy(true);
+    stopDeep();
+    fetch(url, { credentials: 'same-origin' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (html) {
+        if (seq !== navSeq) return;
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var pre = doc.querySelector('pre');
+        if (!pre) { location.href = url; return; }
+        var read = readEntries(pre);
+        if (push) history.pushState({}, '', url);
+        clearSel();
+        $.q.value = ''; state.query = ''; $.clear.hidden = true;
+        state.group = 'all';
+        applyListing(pathFromDoc(doc.body), read.entries, read.parentHref);
+        render();
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      })
+      .catch(function () { location.href = url; })
+      .then(function () { if (seq === navSeq) busy(false); });
+  }
+
+  function busy(on) { $.progress.classList.toggle('is-on', !!on); }
+
+  function applyListing(path, entries, parentHref) {
+    state.path = path;
+    state.entries = entries;
+    state.parentHref = parentHref;
+    state.deepHits = null;
+    state.cursor = -1;
+
+    var segs = path.split('/').filter(Boolean);
+    var current = segs.length ? segs[segs.length - 1] : BRAND;
+    document.title = segs.length ? current + ' · ' + BRAND : BRAND;
+
+    $.title.textContent = current;
+    $.sub.textContent = path;
+    $.sub.hidden = segs.length === 0;
+
+    /* breadcrumbs */
+    $.crumbs.textContent = '';
+    var rootA = el('a', null, BRAND);
+    rootA.href = '/';
+    $.crumbs.appendChild(rootA);
+    var acc = '';
+    segs.forEach(function (s, idx) {
+      acc += '/' + encodeURIComponent(s);
+      var sep = el('span', 'sep');
+      sep.appendChild(icon('chevron_right'));
+      $.crumbs.appendChild(sep);
+      if (idx === segs.length - 1) $.crumbs.appendChild(el('span', 'cur', s));
+      else {
+        var a = el('a', null, s);
+        a.href = acc + '/';
+        $.crumbs.appendChild(a);
+      }
+    });
+    Array.prototype.forEach.call($.crumbs.querySelectorAll('a'), function (a) {
+      a.addEventListener('click', function (ev) {
+        if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button) return;
+        ev.preventDefault(); go(a.href, true);
+      });
+    });
+    $.crumbs.scrollLeft = $.crumbs.scrollWidth;
+
+    $.home.classList.toggle('is-on', segs.length === 0);
+    $.up.disabled = segs.length === 0;
+  }
+
+  /* ==================================================================
+     Walking the tree — used by recursive search and by directory sizes
+     ================================================================== */
+  function crawl(startUrl, opts) {
+    var queue = [startUrl], seen = Object.create(null), active = 0;
+    var dirs = 0, stopped = false;
+    seen[startUrl] = 1;
+
+    /* one directory per call, so the URL is captured per request — a
+       shared `var` in the pump loop gets overwritten before the async
+       handler runs, and every entry ends up attributed to whichever
+       directory happened to be dequeued last */
+    function fetchDir(url) {
+      active++;
+      dirs++;
+      fetch(url, { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.text() : ''; })
+        .then(function (html) {
+          if (stopped || !html) return;
+          var doc = new DOMParser().parseFromString(html, 'text/html');
+          var pre = doc.querySelector('pre');
+          if (!pre) return;
+          var read = readEntries(pre, url);
+          read.entries.forEach(function (e) {
+            e.dirUrl = url;
+            if (opts.onEntry) opts.onEntry(e);
+            if (e.isDir && !seen[e.href]) { seen[e.href] = 1; queue.push(e.href); }
+          });
+        })
+        .catch(function () {})
+        .then(function () {
+          active--;
+          if (opts.onProgress) opts.onProgress(dirs, queue.length);
+          step();
+        });
+    }
+
+    function step() {
+      if (stopped) return;
+      while (active < CFG.crawlConcurrency && queue.length && dirs < CFG.crawlMaxDirs) {
+        fetchDir(queue.shift());
+      }
+      if (!queue.length && !active && opts.onDone) opts.onDone(dirs);
+    }
+    step();
+
+    return { stop: function () { stopped = true; queue.length = 0; } };
+  }
+  /* test seam: tools/test-probe.mjs drives the crawler directly */
+  window.M3L_CRAWL = function (url, onEntry) {
+    return crawl(url, { onEntry: onEntry });
+  };
+
+  /* ---- recursive search -------------------------------------------- */
+  function startDeep() {
+    if (!state.query) return;
+    var q = state.query.toLowerCase();
+    state.deepHits = [];
+    state.deep = crawl(location.href, {
+      onEntry: function (e) {
+        if (e.name.toLowerCase().indexOf(q) === -1) return;
+        e.rel = relPath(e.dirUrl);
+        state.deepHits.push(e);
+        if (state.deepHits.length % 12 === 0) render();
+      },
+      onProgress: function (n) {
+        $.deepBar.textContent = fill(T.deepDone, { n: n }) + ' · ' + state.deepHits.length;
+      },
+      onDone: function (n) {
+        state.deep = null;
+        syncDeep();
+        $.deepBar.textContent = fill(T.deepDone, { n: n }) + ' · ' + state.deepHits.length;
+        render();
+      }
+    });
+    syncDeep();
+    render();
+  }
+
+  function stopDeep() {
+    if (state.deep) { state.deep.stop(); state.deep = null; syncDeep(); }
+  }
+
+  function syncDeep() {
+    var on = !!state.deep;
+    $.deepBtn.classList.toggle('is-on', on);
+    $.deepBtn.querySelector('.deepbtn__t').textContent = on ? T.deepStop : T.deep;
+    $.deepBar.hidden = !state.deepHits;
+    busy(on);
+  }
+
+  function relPath(dirUrl) {
+    try {
+      var p = decodeURIComponent(new URL(dirUrl).pathname);
+      return p === state.path ? '' : p;
+    } catch (e) { return ''; }
+  }
+
+  /* ---- directory size ---------------------------------------------- */
+  function measure(entry, node) {
+    if (entry._measuring) return;
+    entry._measuring = true;
+    var bytes = 0, files = 0;
+    var meta = node.querySelector('.item__meta');
+    var paint = function (done) {
+      meta.textContent = (entry.date ? DATE_FMT.format(entry.date) + '  ·  ' : '') +
+        (done ? '' : T.calculating + ' ') + fmtSize(bytes) +
+        '  ·  ' + files + ' ' + plural(files, T.files);
+    };
+    paint(false);
+    crawl(entry.href, {
+      onEntry: function (e) { if (!e.isDir) { files++; bytes += e.size || 0; } },
+      onProgress: function () { paint(false); },
+      onDone: function () {
+        entry.measured = { bytes: bytes, files: files };
+        entry._measuring = false;
+        paint(true);
+      }
     });
   }
 
-  function swapIcon(host, name) {
-    host.replaceChild(icon(name), host.querySelector('.gs'));
+  /* ==================================================================
+     Search field
+     ================================================================== */
+  function onQuery() {
+    state.query = $.q.value.trim();
+    state.cursor = -1;
+    $.clear.hidden = !state.query;
+    if (state.deepHits) { stopDeep(); state.deepHits = null; syncDeep(); }
+    var u = new URL(location.href);
+    if (state.query) u.searchParams.set('q', state.query); else u.searchParams.delete('q');
+    history.replaceState({}, '', u.pathname + (u.search || '') );
+    $.deepBtn.hidden = !state.query;
+    render();
   }
 
-  /* --- search panel ------------------------------------------------- */
+  var searchAnim;
   function syncSearch(open) {
     $.wrap.classList.toggle('is-open', open);
     $.fab.classList.toggle('is-on', open);
     $.fab.setAttribute('aria-expanded', open ? 'true' : 'false');
     $.fab.title = open ? T.close : T.find;
     swapIcon($.fab.querySelector('.rail-item__ico'), open ? 'close' : 'search');
-    /* keep the collapsed field out of the tab order */
     $.q.tabIndex = open ? 0 : -1;
+    $.deepBtn.hidden = !state.query;
+
+    /* height animates from a number, but the panel must be free to grow
+       afterwards — the chips and the deep-search row appear later */
+    clearTimeout(searchAnim);
+    if (open) {
+      $.wrap.style.height = $.wrap.scrollHeight + 'px';
+      searchAnim = setTimeout(function () {
+        if ($.wrap.classList.contains('is-open')) $.wrap.style.height = 'auto';
+      }, 340);
+    } else {
+      if (!$.wrap.style.height || $.wrap.style.height === 'auto') {
+        $.wrap.style.height = $.wrap.scrollHeight + 'px';
+      }
+      void $.wrap.offsetHeight;
+      $.wrap.style.height = '0px';
+    }
   }
 
   function openSearch(open) {
@@ -605,11 +897,22 @@
       $.q.focus(); $.q.select();
     } else {
       syncSearch(false);
-      if ($.q.value) {
-        $.q.value = ''; state.query = ''; $.clear.hidden = true; render();
-      }
+      if ($.q.value) { $.q.value = ''; onQuery(); }
       $.q.blur();
     }
+  }
+
+  function swapIcon(host, name) {
+    host.replaceChild(icon(name), host.querySelector('.gs'));
+  }
+
+  function syncSort() {
+    ['name', 'date', 'size'].forEach(function (k) {
+      var b = $.tabs.querySelector('[data-sort="' + k + '"]');
+      var on = state.sort === k;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.setAttribute('data-desc', on && state.desc ? '1' : '0');
+    });
   }
 
   function syncView() {
@@ -629,9 +932,9 @@
     else document.documentElement.setAttribute('data-theme', mode);
   }
 
-  /* ------------------------------------------------------------------
+  /* ==================================================================
      Multi-select
-     ------------------------------------------------------------------ */
+     ================================================================== */
   function setPicking(on) {
     state.picking = on;
     document.documentElement.classList.toggle('is-picking', on);
@@ -639,15 +942,16 @@
     $.pick.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
+  function pool() { return state.deepHits || state.entries; }
   function selectedEntries() {
-    return state.entries.filter(function (e) { return state.sel[e.href]; });
+    return pool().filter(function (e) { return state.sel[e.href]; });
   }
   function selectedFiles() {
     return selectedEntries().filter(function (e) { return !e.isDir; });
   }
 
-  function toggleSel(entry, index, range) {
-    if (range && state.anchor != null && state.visible[state.anchor]) {
+  function toggleSel(entry, index, rangeSel) {
+    if (rangeSel && state.anchor != null && state.visible[state.anchor]) {
       var a = Math.min(state.anchor, index), b = Math.max(state.anchor, index);
       for (var j = a; j <= b; j++) state.sel[state.visible[j].href] = true;
     } else {
@@ -683,19 +987,22 @@
     syncSelbar();
   }
 
-  var selbarTimer;
+  var selbarTimer, selbarRaf = 0;
   function syncSelbar() {
     if (!$.selbar) return;
     var n = state.selN;
     clearTimeout(selbarTimer);
+    cancelAnimationFrame(selbarRaf);
     if (n) {
       $.selbar.querySelector('.selbar__n').textContent = T.selected + ' ' + n;
       $.seldl.disabled = selectedFiles().length === 0;
       $.selbar.hidden = false;
-      requestAnimationFrame(function () { $.selbar.classList.add('show'); });
+      selbarRaf = requestAnimationFrame(function () {
+        if (state.selN) $.selbar.classList.add('show');
+      });
     } else {
       $.selbar.classList.remove('show');
-      selbarTimer = setTimeout(function () { $.selbar.hidden = true; }, 340);
+      selbarTimer = setTimeout(function () { if (!state.selN) $.selbar.hidden = true; }, 340);
     }
   }
 
@@ -705,7 +1012,7 @@
   function downloadSelected() {
     var files = selectedFiles();
     if (!files.length) return;
-    toast(T.dlStarted.replace('{n}', files.length));
+    toast(fill(T.dlStarted, { n: files.length }));
     var i = 0;
     (function next() {
       if (i >= files.length) return;
@@ -724,25 +1031,34 @@
   function copySelected() {
     var entries = selectedEntries();
     if (!entries.length) return;
-    var urls = entries.map(function (e) {
-      return new URL(e.href, location.href).href;
-    }).join('\n');
-    copyText(urls, T.copiedN.replace('{n}', entries.length));
+    copyText(entries.map(function (e) { return abs(e.href); }).join('\n'),
+             fill(T.copiedN, { n: entries.length }));
   }
 
-  /* ------------------------------------------------------------------
+  function copyAsList() {
+    var entries = selectedEntries();
+    if (!entries.length) return;
+    copyText(entries.map(function (e) {
+      return [e.name,
+              e.isDir ? T.folder : fmtSize(e.size),
+              e.date ? DATE_FMT.format(e.date) : ''].join('\t');
+    }).join('\n'), T.copiedList);
+  }
+
+  /* ==================================================================
      Render
-     ------------------------------------------------------------------ */
+     ================================================================== */
   var COLLATOR = new Intl.Collator(LOCALE, { numeric: true, sensitivity: 'base' });
 
   function render() {
-    var ui = document.querySelector('.m3l');
-    var list = ui.querySelector('.list');
-    var empty = ui.querySelector('.empty');
     var q = state.query.toLowerCase();
+    var deep = !!state.deepHits;
+    var src = deep ? state.deepHits : state.entries;
 
-    var items = state.entries.filter(function (e) {
-      return !q || e.name.toLowerCase().indexOf(q) !== -1;
+    var items = src.filter(function (e) {
+      if (!deep && q && e.name.toLowerCase().indexOf(q) === -1) return false;
+      if (state.group !== 'all' && groupOf(e) !== state.group) return false;
+      return true;
     });
 
     items.sort(function (a, b) {
@@ -756,18 +1072,22 @@
     });
 
     state.visible = items;
-    state.anchor = null;          /* row indices just changed meaning */
+    state.anchor = null;
 
-    list.textContent = '';
-    list.className = 'list' + (state.view === 'grid' ? ' grid' : '');
+    renderChips(src);
+
+    $.list.textContent = '';
+    $.list.className = 'list' + (state.view === 'grid' ? ' grid' : '');
 
     var frag = document.createDocumentFragment();
     items.forEach(function (e, i) { frag.appendChild(row(e, i, q)); });
-    list.appendChild(frag);
+    $.list.appendChild(frag);
+    observeThumbs();
 
-    empty.hidden = items.length > 0;
+    $.empty.hidden = items.length > 0;
     if (!items.length) {
-      empty.querySelector('p').textContent = state.entries.length ? T.nothing : T.emptyDir;
+      $.empty.querySelector('p').textContent =
+        (state.entries.length || deep) ? T.nothing : T.emptyDir;
     }
 
     var nd = 0, nf = 0, total = 0;
@@ -778,9 +1098,33 @@
     if (nd) parts.push(nd + ' ' + plural(nd, T.dirs));
     if (nf) parts.push(nf + ' ' + plural(nf, T.files));
     if (total) parts.push(fmtSize(total));
-    ui.querySelector('.stats').textContent = parts.length ? parts.join(' · ') : T.empty;
+    $.stats.textContent = parts.length ? parts.join(' · ') : T.empty;
 
     syncSelbar();
+  }
+
+  function renderChips(src) {
+    var counts = { all: src.length };
+    src.forEach(function (e) {
+      var g = groupOf(e);
+      counts[g] = (counts[g] || 0) + 1;
+    });
+    var order = ['all', 'dir', 'pic', 'vid', 'snd', 'arch', 'doc', 'code', 'bin', 'other'];
+    $.chips.textContent = '';
+    var shown = 0;
+    order.forEach(function (g) {
+      if (g !== 'all' && !counts[g]) return;
+      shown++;
+      var b = el('button', 'chip' + (state.group === g ? ' is-on' : ''));
+      b.type = 'button';
+      b.textContent = T.groups[g] + (g === 'all' ? '' : ' ' + counts[g]);
+      b.addEventListener('click', function () {
+        state.group = state.group === g ? 'all' : g;
+        render();
+      });
+      $.chips.appendChild(b);
+    });
+    $.chips.hidden = shown < 3;
   }
 
   function highlight(text, q) {
@@ -806,8 +1150,6 @@
     a.title = e.name + (e.exact && e.size != null
       ? '\n' + e.size.toLocaleString(LOCALE) + ' ' + UNITS[0] : '');
 
-    /* full-row link overlay — keeps one real <a> per row while still
-       allowing real buttons in the trailing slot */
     var link = el('a', 'item__link');
     link.href = e.href;
     link.setAttribute('aria-label', e.name);
@@ -815,7 +1157,11 @@
       if (state.picking || ev.ctrlKey || ev.metaKey || ev.shiftKey) {
         ev.preventDefault();
         toggleSel(e, i, ev.shiftKey);
+        return;
       }
+      if (ev.button) return;
+      if (e.isDir) { ev.preventDefault(); go(link.href, true); return; }
+      if (previewKind(e)) { ev.preventDefault(); openViewer(e); }
     });
     a.appendChild(link);
 
@@ -823,9 +1169,9 @@
     var ico = el('span', 'item__ico');
     ico.appendChild(icon(k.icon, 'type', k.fb));
     ico.appendChild(icon('check', 'check'));
+    if (thumbable(e)) { ico.dataset.thumb = e.href; a.classList.add('has-thumb'); }
     ico.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      ev.stopPropagation();
+      ev.preventDefault(); ev.stopPropagation();
       toggleSel(e, i, ev.shiftKey);
     });
     a.appendChild(ico);
@@ -833,17 +1179,42 @@
     var body = el('span', 'item__body');
     var nm = el('span', 'item__name');
     nm.appendChild(highlight(e.name, q));
+    if (isFresh(e)) nm.appendChild(el('span', 'freshdot', T.fresh));
     body.appendChild(nm);
 
     var meta = el('span', 'item__meta');
     var bits = [];
+    if (e.rel) bits.push(fill(T.deepIn, { p: e.rel }));
     if (e.date) bits.push(DATE_FMT.format(e.date));
-    bits.push(e.isDir ? T.folder : fmtSize(e.size));
+    bits.push(e.isDir
+      ? (e.measured ? fmtSize(e.measured.bytes) + '  ·  ' + e.measured.files + ' ' +
+                      plural(e.measured.files, T.files) : T.folder)
+      : fmtSize(e.size));
     meta.textContent = bits.filter(Boolean).join('  ·  ');
     body.appendChild(meta);
     a.appendChild(body);
 
     var tail = el('span', 'item__tail');
+
+    if (e.isDir) {
+      var msr = el('button', 'iconbtn hoveronly');
+      msr.type = 'button';
+      msr.title = T.calcSize;
+      msr.appendChild(icon('straighten'));
+      msr.addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation(); measure(e, a);
+      });
+      tail.appendChild(msr);
+    } else {
+      var inf = el('button', 'iconbtn hoveronly');
+      inf.type = 'button';
+      inf.title = T.props;
+      inf.appendChild(icon('info'));
+      inf.addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation(); openViewer(e, true);
+      });
+      tail.appendChild(inf);
+    }
 
     var copy = el('button', 'iconbtn hoveronly');
     copy.type = 'button';
@@ -851,7 +1222,7 @@
     copy.appendChild(icon('link'));
     copy.addEventListener('click', function (ev) {
       ev.preventDefault(); ev.stopPropagation();
-      copyLink(new URL(e.href, location.href).href);
+      copyText(abs(e.href), T.copied);
     });
     tail.appendChild(copy);
 
@@ -872,9 +1243,568 @@
     return a;
   }
 
-  /* ------------------------------------------------------------------
-     Copy link + toast
-     ------------------------------------------------------------------ */
+  /* ---- thumbnails --------------------------------------------------- */
+  var THUMBS = 'jpg jpeg jfif png gif webp bmp avif svg ico';
+
+  function thumbable(e) {
+    if (e.isDir) return false;
+    var x = ext(e.name);
+    if (THUMBS.split(' ').indexOf(x) === -1) return false;
+    return e.size == null || e.size <= CFG.thumbMaxMB * 1048576;
+  }
+
+  var thumbObserver = null;
+  function observeThumbs() {
+    if (!('IntersectionObserver' in window)) return;
+    if (!thumbObserver) {
+      thumbObserver = new IntersectionObserver(function (rows) {
+        rows.forEach(function (r) {
+          if (!r.isIntersecting) return;
+          thumbObserver.unobserve(r.target);
+          loadThumb(r.target);
+        });
+      }, { rootMargin: '300px' });
+    }
+    Array.prototype.forEach.call($.list.querySelectorAll('.item__ico[data-thumb]'),
+      function (n) { thumbObserver.observe(n); });
+  }
+
+  function loadThumb(ico) {
+    var url = ico.dataset.thumb;
+    delete ico.dataset.thumb;
+    var img = new Image();
+    img.className = 'item__thumb';
+    img.alt = '';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.addEventListener('load', function () {
+      ico.appendChild(img);
+      requestAnimationFrame(function () { ico.classList.add('has-img'); });
+    });
+    img.src = url;
+  }
+
+  /* ==================================================================
+     Viewer — preview plus properties, one overlay for both
+     ================================================================== */
+  var PREV = {
+    image: 'jpg jpeg jfif jpe png gif webp bmp avif svg ico',
+    video: 'mp4 m4v webm mov mkv ogv',
+    audio: 'mp3 flac wav ogg oga m4a aac opus',
+    pdf:   'pdf',
+    text:  'txt md markdown log nfo readme conf cnf cfg ini yaml yml toml json xml ' +
+           'html htm css js mjs ts py sh bash bat ps1 c h cpp hpp cc pl pm t sql ' +
+           'csv tsv srt vtt env service properties pem csr'
+  };
+
+  function previewKind(e) {
+    if (e.isDir) return null;
+    var x = ext(e.name);
+    for (var k in PREV) if (PREV[k].split(' ').indexOf(x) >= 0) return k;
+    return null;
+  }
+
+  function wireViewer() {
+    $.vTitle = $.viewer.querySelector('.viewer__name');
+    $.vStage = $.viewer.querySelector('.viewer__stage');
+    $.vProps = $.viewer.querySelector('.viewer__props');
+    $.vQr = $.viewer.querySelector('.viewer__qr');
+    $.viewer.querySelector('.viewer__scrim').addEventListener('click', closeViewer);
+    $.viewer.querySelector('.viewer__close').addEventListener('click', closeViewer);
+    $.viewer.querySelector('.viewer__prev').addEventListener('click', function () { step(-1); });
+    $.viewer.querySelector('.viewer__next').addEventListener('click', function () { step(1); });
+    $.vQrBtn = $.viewer.querySelector('.viewer__qrbtn');
+    $.vQrBtn.title = T.qr;
+    $.vQrBtn.addEventListener('click', function () {
+      $.vQr.hidden = !$.vQr.hidden;
+      if (!$.vQr.hidden) drawQR($.vQr, abs(state.viewing.href));
+    });
+    $.vDl = $.viewer.querySelector('.viewer__dl');
+    $.vDl.title = T.download;
+    $.vCopy = $.viewer.querySelector('.viewer__copy');
+    $.vCopy.title = T.copy;
+    $.vCopy.addEventListener('click', function () { copyText(abs(state.viewing.href), T.copied); });
+  }
+
+  /* The enter transition needs a frame between `hidden = false` and the
+     `show` class. Tracking that with the class alone breaks on a fast
+     open-then-close: the queued frame puts `show` back after the close
+     already ran, and the overlay stays up forever. Hence the flag. */
+  var viewerOpen = false, viewerRaf = 0;
+
+  function openViewer(entry, propsOnly) {
+    state.viewing = entry;
+    viewerOpen = true;
+    $.viewer.hidden = false;
+    cancelAnimationFrame(viewerRaf);
+    viewerRaf = requestAnimationFrame(function () {
+      if (viewerOpen) $.viewer.classList.add('show');
+    });
+    $.vTitle.textContent = entry.name;
+    $.vDl.href = entry.href;
+    $.vQr.hidden = true;
+    $.vStage.textContent = '';
+    $.vProps.textContent = '';
+
+    var kind = propsOnly ? null : previewKind(entry);
+    if (kind) renderPreview(kind, entry);
+    else {
+      var ph = el('div', 'viewer__none');
+      ph.appendChild(icon(kindOf(entry).icon, null, kindOf(entry).fb));
+      ph.appendChild(el('p', null, T.noPreview));
+      $.vStage.appendChild(ph);
+    }
+    loadProps(entry);
+  }
+
+  function renderPreview(kind, entry) {
+    var n;
+    if (kind === 'image') {
+      n = new Image();
+      n.className = 'viewer__img';
+      n.alt = entry.name;
+      n.src = entry.href;
+    } else if (kind === 'video' || kind === 'audio') {
+      n = document.createElement(kind);
+      n.className = 'viewer__media';
+      n.src = entry.href;
+      n.controls = true;
+      n.autoplay = true;
+      n.addEventListener('ended', function () { step(1, true); });
+    } else if (kind === 'pdf') {
+      n = el('iframe', 'viewer__frame');
+      n.src = entry.href;
+      n.setAttribute('title', entry.name);
+    } else {
+      n = el('pre', 'viewer__text', T.loading);
+      fetch(entry.href, { headers: { Range: 'bytes=0-524287' }, credentials: 'same-origin' })
+        .then(function (r) { return r.text(); })
+        .then(function (t) {
+          n.textContent = t;
+          if (entry.size > 524288) n.textContent += '\n\n…';
+        })
+        .catch(function () { n.textContent = T.probeFail; });
+    }
+    $.vStage.appendChild(n);
+  }
+
+  function step(dir, onlyMedia) {
+    var list = state.visible.filter(function (e) {
+      var k = previewKind(e);
+      return onlyMedia ? (k === 'audio' || k === 'video') : !!k;
+    });
+    if (!list.length) return;
+    var idx = list.indexOf(state.viewing);
+    var next = list[(idx + dir + list.length) % list.length];
+    if (next && next !== state.viewing) openViewer(next);
+  }
+
+  function closeViewer() {
+    viewerOpen = false;
+    cancelAnimationFrame(viewerRaf);
+    $.viewer.classList.remove('show');
+    var media = $.vStage.querySelector('video, audio');
+    if (media) { try { media.pause(); } catch (e) {} }
+    setTimeout(function () {
+      if (!viewerOpen) {
+        $.viewer.hidden = true;
+        $.vStage.textContent = '';
+      }
+    }, 320);
+    state.viewing = null;
+  }
+
+  /* ---- properties --------------------------------------------------- */
+  function loadProps(entry) {
+    var dl = el('dl', 'props');
+    addProp(dl, T.size, entry.size != null
+      ? fmtSize(entry.size) + (entry.exact ? ' (' + entry.size.toLocaleString(LOCALE) + ')' : '')
+      : null);
+    addProp(dl, T.date, entry.date ? DATE_FMT.format(entry.date) : null);
+    $.vProps.appendChild(dl);
+
+    var x = ext(entry.name);
+    if (!window.M3LProbe || !window.M3LProbe.supports(x)) return;
+
+    var wait = el('p', 'props__wait', T.loading);
+    $.vProps.appendChild(wait);
+
+    var size = entry.size;
+    var run = function (sz) {
+      return window.M3LProbe.probe(entry.href, x, sz).then(function (info) {
+        wait.remove();
+        renderProps(info);
+      });
+    };
+    /* a rounded size from the listing is not good enough for tail reads */
+    var pre = entry.exact ? Promise.resolve(size)
+                          : window.M3LProbe.head(entry.href).then(function (h) { return h.size || size; });
+    pre.then(run).catch(function () {
+      wait.textContent = T.probeFail;
+    });
+  }
+
+  function addProp(dl, k, v) {
+    if (v == null || v === '' || v === false) return;
+    dl.appendChild(el('dt', null, k));
+    dl.appendChild(el('dd', null, String(v)));
+  }
+
+  function renderProps(info) {
+    var F = T.f;
+    var dl = el('dl', 'props');
+
+    if (info.kind === 'image') {
+      addProp(dl, F.format, info.format);
+      if (info.width && info.height) addProp(dl, F.dim, info.width + ' × ' + info.height);
+      addProp(dl, F.depth, info.depth ? info.depth + ' bit' : null);
+      addProp(dl, F.color, info.color);
+      var x = info.exif;
+      if (x) {
+        addProp(dl, F.make, x.make);
+        addProp(dl, F.model, x.model);
+        addProp(dl, F.lens, x.lens);
+        addProp(dl, F.taken, x.taken || x.datetime);
+        addProp(dl, F.exposure, x.exposure ? (x.exposure < 1
+          ? '1/' + Math.round(1 / x.exposure) + ' s' : x.exposure + ' s') : null);
+        addProp(dl, F.fnumber, x.fnumber ? 'f/' + x.fnumber : null);
+        addProp(dl, F.iso, x.iso);
+        addProp(dl, F.focal, x.focal ? Math.round(x.focal) + ' мм' : null);
+      }
+    } else if (info.kind === 'video') {
+      addProp(dl, F.container, info.container + (info.brand ? ' (' + info.brand + ')' : ''));
+      addProp(dl, F.title, info.title);
+      addProp(dl, F.duration, window.M3LProbe.fmtDuration(info.duration));
+      if (info.width && info.height) addProp(dl, F.dim, info.width + ' × ' + info.height);
+      addProp(dl, F.muxer, info.muxer);
+      (info.tracks || []).forEach(function (t) {
+        var label = t.type === 'vide' ? F.video : t.type === 'soun' ? F.audio : F.subs;
+        var bits = [t.codec];
+        if (t.width && t.height) bits.push(t.width + '×' + t.height);
+        if (t.channels) bits.push(t.channels + ' ch');
+        if (t.rate) bits.push(Math.round(t.rate) + ' Hz');
+        if (t.lang) bits.push(t.lang);
+        if (t.name) bits.push(t.name);
+        addProp(dl, label, bits.filter(Boolean).join(' · '));
+      });
+    } else if (info.kind === 'audio') {
+      addProp(dl, F.format, info.format);
+      addProp(dl, F.duration, window.M3LProbe.fmtDuration(info.duration));
+      var tg = info.tags || {};
+      addProp(dl, F.title, tg.title);
+      addProp(dl, F.artist, tg.artist);
+      addProp(dl, F.album, tg.album);
+      addProp(dl, F.year, tg.year || tg.date);
+      addProp(dl, F.track, tg.track || tg.tracknumber);
+      addProp(dl, F.genre, tg.genre);
+      addProp(dl, F.bitrate, info.bitrate ? info.bitrate + ' kbps' + (info.vbr ? ' VBR' : '') : null);
+      addProp(dl, F.rate, info.rate ? info.rate + ' Hz' : null);
+      addProp(dl, F.channels, info.channels);
+      addProp(dl, F.bits, info.bits);
+      if (info.cover) {
+        var c = new Image();
+        c.className = 'props__cover';
+        c.src = info.cover;
+        $.vProps.appendChild(c);
+      }
+    } else if (info.kind === 'iso') {
+      addProp(dl, F.label, info.label);
+      addProp(dl, F.system, info.system);
+      addProp(dl, F.publisher, info.publisher);
+      addProp(dl, F.preparer, info.preparer);
+      addProp(dl, F.application, info.application);
+      addProp(dl, F.volumeSize, info.volumeSize ? fmtSize(info.volumeSize) : null);
+      addProp(dl, F.blocks, info.blocks ? info.blocks.toLocaleString(LOCALE) : null);
+      addProp(dl, F.created, info.created ? DATE_FMT.format(info.created) : null);
+    } else if (info.kind === 'zip') {
+      addProp(dl, F.entries, info.count);
+      addProp(dl, F.totalSize, fmtSize(info.totalSize));
+      addProp(dl, F.packedSize, fmtSize(info.packedSize));
+      if (info.totalSize) {
+        addProp(dl, F.ratio, Math.round(100 - info.packedSize / info.totalSize * 100) + '%');
+      }
+    }
+
+    if (dl.childNodes.length) $.vProps.appendChild(dl);
+
+    if (info.kind === 'zip' && info.entries.length) {
+      $.vProps.appendChild(el('h3', 'props__h', T.inside));
+      var tbl = el('div', 'zip');
+      info.entries.forEach(function (z) {
+        var r = el('div', 'zip__row' + (z.dir ? ' is-dir' : ''));
+        r.appendChild(el('span', 'zip__n', z.name));
+        r.appendChild(el('span', 'zip__s', z.dir ? '' : fmtSize(z.size)));
+        tbl.appendChild(r);
+      });
+      $.vProps.appendChild(tbl);
+      if (info.truncated) {
+        $.vProps.appendChild(el('p', 'props__wait',
+          fill(T.more, { n: info.count - info.shown })));
+      }
+    }
+  }
+
+  /* ==================================================================
+     QR — byte mode, ECC level L, versions 1..10. Enough for a URL, and
+     it keeps the page free of any external request.
+     ================================================================== */
+  var QR_CAP = [17, 32, 53, 78, 106, 134, 154, 192, 230, 271];
+  var QR_TOTAL = [26, 44, 70, 100, 134, 172, 196, 242, 292, 346];
+  var QR_ECB = [7, 10, 15, 20, 26, 18, 20, 24, 30, 18];
+  var QR_BLOCKS = [1, 1, 1, 1, 1, 2, 2, 2, 2, 4];
+  var QR_ALIGN = [[], [6,18], [6,22], [6,26], [6,30], [6,34],
+                  [6,22,38], [6,24,42], [6,26,46], [6,28,50]];
+
+  var GF_EXP = new Uint8Array(512), GF_LOG = new Uint8Array(256);
+  (function () {
+    for (var i = 0, x = 1; i < 255; i++) {
+      GF_EXP[i] = x; GF_LOG[x] = i;
+      x <<= 1; if (x & 0x100) x ^= 0x11d;
+    }
+    for (var j = 255; j < 512; j++) GF_EXP[j] = GF_EXP[j - 255];
+  })();
+  function gmul(a, b) { return (a && b) ? GF_EXP[GF_LOG[a] + GF_LOG[b]] : 0; }
+
+  function rsGen(n) {
+    var g = [1];
+    for (var i = 0; i < n; i++) {
+      var ng = new Array(g.length + 1).fill(0);
+      for (var j = 0; j < g.length; j++) {
+        ng[j] ^= g[j];
+        ng[j + 1] ^= gmul(g[j], GF_EXP[i]);
+      }
+      g = ng;
+    }
+    return g;
+  }
+
+  function rsEncode(data, n) {
+    var g = rsGen(n), res = new Array(n).fill(0);
+    for (var i = 0; i < data.length; i++) {
+      var f = data[i] ^ res[0];
+      res.shift(); res.push(0);
+      if (f) for (var j = 0; j < n; j++) res[j] ^= gmul(g[j + 1], f);
+    }
+    return res;
+  }
+
+  function qrEncode(text) {
+    var bytes = new TextEncoder().encode(text);
+    var ver = 0;
+    while (ver < 10 && bytes.length > QR_CAP[ver]) ver++;
+    if (bytes.length > QR_CAP[ver]) return null;
+    var version = ver + 1;
+
+    var lenBits = version >= 10 ? 16 : 8;
+    var bits = [];
+    var push = function (val, n) { for (var i = n - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+    push(4, 4);
+    push(bytes.length, lenBits);
+    for (var i = 0; i < bytes.length; i++) push(bytes[i], 8);
+
+    var totalCw = QR_TOTAL[ver], ecPer = QR_ECB[ver], blocks = QR_BLOCKS[ver];
+    var dataCw = totalCw - ecPer * blocks;
+    push(0, Math.min(4, dataCw * 8 - bits.length));
+    while (bits.length % 8) bits.push(0);
+    var data = [];
+    for (var b = 0; b < bits.length; b += 8) {
+      var v = 0;
+      for (var k = 0; k < 8; k++) v = (v << 1) | bits[b + k];
+      data.push(v);
+    }
+    var pads = [0xEC, 0x11], pi = 0;
+    while (data.length < dataCw) data.push(pads[pi++ % 2]);
+
+    /* split into blocks: the tail blocks are one codeword longer */
+    var short = Math.floor(dataCw / blocks), longCount = dataCw % blocks;
+    var dBlocks = [], eBlocks = [], at = 0;
+    for (var bi = 0; bi < blocks; bi++) {
+      var len = short + (bi >= blocks - longCount ? 1 : 0);
+      var chunk = data.slice(at, at + len); at += len;
+      dBlocks.push(chunk);
+      eBlocks.push(rsEncode(chunk, ecPer));
+    }
+    var out = [];
+    var maxLen = Math.max.apply(null, dBlocks.map(function (d) { return d.length; }));
+    for (var c = 0; c < maxLen; c++)
+      for (var bb = 0; bb < blocks; bb++) if (c < dBlocks[bb].length) out.push(dBlocks[bb][c]);
+    for (var c2 = 0; c2 < ecPer; c2++)
+      for (var bb2 = 0; bb2 < blocks; bb2++) out.push(eBlocks[bb2][c2]);
+
+    return { version: version, codewords: out };
+  }
+
+  function qrMatrix(text) {
+    var enc = qrEncode(text);
+    if (!enc) return null;
+    var version = enc.version, size = version * 4 + 17;
+    var m = [], reserved = [];
+    for (var i = 0; i < size; i++) { m.push(new Uint8Array(size)); reserved.push(new Uint8Array(size)); }
+
+    function setF(r, c, v) { if (r >= 0 && c >= 0 && r < size && c < size) { m[r][c] = v; reserved[r][c] = 1; } }
+
+    /* finders + separators */
+    [[0, 0], [0, size - 7], [size - 7, 0]].forEach(function (p) {
+      for (var r = -1; r <= 7; r++) for (var c = -1; c <= 7; c++) {
+        var on = (r >= 0 && r <= 6 && (c === 0 || c === 6)) ||
+                 (c >= 0 && c <= 6 && (r === 0 || r === 6)) ||
+                 (r >= 2 && r <= 4 && c >= 2 && c <= 4);
+        setF(p[0] + r, p[1] + c, on ? 1 : 0);
+      }
+    });
+    /* timing */
+    for (var t = 8; t < size - 8; t++) { setF(6, t, t % 2 ? 0 : 1); setF(t, 6, t % 2 ? 0 : 1); }
+    /* alignment */
+    var al = QR_ALIGN[version - 1];
+    for (var a1 = 0; a1 < al.length; a1++) for (var a2 = 0; a2 < al.length; a2++) {
+      var ar = al[a1], ac = al[a2];
+      if ((ar <= 7 && ac <= 7) || (ar <= 7 && ac >= size - 8) || (ar >= size - 8 && ac <= 7)) continue;
+      for (var dr = -2; dr <= 2; dr++) for (var dc = -2; dc <= 2; dc++)
+        setF(ar + dr, ac + dc, (Math.abs(dr) === 2 || Math.abs(dc) === 2 || (!dr && !dc)) ? 1 : 0);
+    }
+    /* dark module + format/version reservations */
+    setF(size - 8, 8, 1);
+    for (var f = 0; f < 9; f++) { if (f !== 6) { reserved[8][f] = 1; reserved[f][8] = 1; } }
+    for (var f2 = 0; f2 < 8; f2++) { reserved[8][size - 1 - f2] = 1; reserved[size - 1 - f2][8] = 1; }
+    if (version >= 7) {
+      for (var vr = 0; vr < 6; vr++) for (var vc = 0; vc < 3; vc++) {
+        reserved[vr][size - 11 + vc] = 1; reserved[size - 11 + vc][vr] = 1;
+      }
+    }
+
+    /* data placement */
+    var cw = enc.codewords, bitIdx = 0, dir = -1, row = size - 1;
+    for (var col = size - 1; col > 0; col -= 2) {
+      if (col === 6) col--;
+      for (;;) {
+        for (var s = 0; s < 2; s++) {
+          var cc = col - s;
+          if (!reserved[row][cc]) {
+            var bit = 0;
+            if (bitIdx < cw.length * 8) bit = (cw[bitIdx >> 3] >> (7 - (bitIdx & 7))) & 1;
+            bitIdx++;
+            m[row][cc] = bit;
+          }
+        }
+        row += dir;
+        if (row < 0 || row >= size) { row -= dir; dir = -dir; break; }
+      }
+    }
+
+    /* mask selection over the standard eight patterns */
+    var MASKS = [
+      function (r, c) { return (r + c) % 2 === 0; },
+      function (r) { return r % 2 === 0; },
+      function (r, c) { return c % 3 === 0; },
+      function (r, c) { return (r + c) % 3 === 0; },
+      function (r, c) { return (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0; },
+      function (r, c) { return (r * c) % 2 + (r * c) % 3 === 0; },
+      function (r, c) { return ((r * c) % 2 + (r * c) % 3) % 2 === 0; },
+      function (r, c) { return ((r + c) % 2 + (r * c) % 3) % 2 === 0; }
+    ];
+    var best = null, bestScore = Infinity;
+    for (var mk = 0; mk < 8; mk++) {
+      var cand = m.map(function (r) { return Uint8Array.from(r); });
+      for (var r2 = 0; r2 < size; r2++) for (var c2b = 0; c2b < size; c2b++)
+        if (!reserved[r2][c2b] && MASKS[mk](r2, c2b)) cand[r2][c2b] ^= 1;
+      placeFormat(cand, size, mk);
+      if (version >= 7) placeVersion(cand, size, version);
+      var sc = penalty(cand, size);
+      if (sc < bestScore) { bestScore = sc; best = cand; }
+    }
+    return { size: size, m: best };
+  }
+
+  function placeFormat(m, size, mask) {
+    var data = (0x01 << 3) | mask;              /* ECC level L = 01 */
+    var rem = data;
+    for (var i = 0; i < 10; i++) rem = (rem << 1) ^ (((rem >> 9) & 1) * 0x537);
+    var bitsv = (((data << 10) | rem) ^ 0x5412);
+    /* Bit 0 is the LSB and sits at (0,8) / (8,size-1); the sequence then
+       walks inwards. Mirroring these two runs produces a code that looks
+       perfectly well formed and decodes in nothing. */
+    for (var k = 0; k < 15; k++) {
+      var bit = (bitsv >> k) & 1;
+      /* vertical run, column 8 */
+      if (k < 6) m[k][8] = bit;
+      else if (k < 8) m[k + 1][8] = bit;
+      else m[size - 15 + k][8] = bit;
+      /* horizontal run, row 8 */
+      if (k < 8) m[8][size - 1 - k] = bit;
+      else if (k === 8) m[8][7] = bit;
+      else m[8][14 - k] = bit;
+    }
+    m[size - 8][8] = 1;
+  }
+
+  function placeVersion(m, size, version) {
+    var rem = version;
+    for (var i = 0; i < 12; i++) rem = (rem << 1) ^ (((rem >> 11) & 1) * 0x1F25);
+    var bitsv = (version << 12) | rem;
+    for (var k = 0; k < 18; k++) {
+      var bit = (bitsv >> k) & 1;
+      var r = Math.floor(k / 3), c = k % 3;
+      m[r][size - 11 + c] = bit;
+      m[size - 11 + c][r] = bit;
+    }
+  }
+
+  function penalty(m, size) {
+    var score = 0, r, c, run, i;
+    for (r = 0; r < size; r++) {
+      run = 1;
+      for (c = 1; c < size; c++) {
+        if (m[r][c] === m[r][c - 1]) { run++; if (run === 5) score += 3; else if (run > 5) score++; }
+        else run = 1;
+      }
+    }
+    for (c = 0; c < size; c++) {
+      run = 1;
+      for (r = 1; r < size; r++) {
+        if (m[r][c] === m[r - 1][c]) { run++; if (run === 5) score += 3; else if (run > 5) score++; }
+        else run = 1;
+      }
+    }
+    for (r = 0; r < size - 1; r++) for (c = 0; c < size - 1; c++) {
+      var s = m[r][c] + m[r][c + 1] + m[r + 1][c] + m[r + 1][c + 1];
+      if (s === 0 || s === 4) score += 3;
+    }
+    var pat = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0];
+    for (r = 0; r < size; r++) for (c = 0; c + 11 <= size; c++) {
+      var ok = true;
+      for (i = 0; i < 11; i++) if (m[r][c + i] !== pat[i]) { ok = false; break; }
+      if (ok) score += 40;
+      ok = true;
+      for (i = 0; i < 11; i++) if (m[c + i][r] !== pat[i]) { ok = false; break; }
+      if (ok) score += 40;
+    }
+    var dark = 0;
+    for (r = 0; r < size; r++) for (c = 0; c < size; c++) dark += m[r][c];
+    score += Math.floor(Math.abs(dark * 100 / (size * size) - 50) / 5) * 10;
+    return score;
+  }
+
+  function drawQR(host, text) {
+    host.textContent = '';
+    var q = qrMatrix(text);
+    if (!q) { host.appendChild(el('p', 'props__wait', T.probeFail)); return; }
+    var quiet = 4, scale = 5, px = (q.size + quiet * 2) * scale;
+    var cv = document.createElement('canvas');
+    cv.width = cv.height = px;
+    cv.className = 'qr';
+    var g = cv.getContext('2d');
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, px, px);
+    g.fillStyle = '#000';
+    for (var r = 0; r < q.size; r++) for (var c = 0; c < q.size; c++)
+      if (q.m[r][c]) g.fillRect((c + quiet) * scale, (r + quiet) * scale, scale, scale);
+    host.appendChild(cv);
+  }
+  window.M3L_QR = qrMatrix;
+
+  /* ==================================================================
+     Clipboard + toast
+     ================================================================== */
   var toastTimer;
   function toast(msg) {
     var t = document.querySelector('.toast');
@@ -887,15 +1817,13 @@
   function copyText(text, msg) {
     var done = function () { toast(msg); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
-    } else fallback(text, done);
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+    } else fallbackCopy(text, done);
   }
 
-  function copyLink(url) { copyText(url, T.copied); }
-
-  function fallback(url, done) {
+  function fallbackCopy(text, done) {
     var ta = el('textarea');
-    ta.value = url;
+    ta.value = text;
     ta.style.cssText = 'position:fixed;opacity:0';
     document.body.appendChild(ta);
     ta.select();
@@ -903,11 +1831,19 @@
     ta.remove();
   }
 
-  /* ------------------------------------------------------------------
+  /* ==================================================================
      Keyboard
-     ------------------------------------------------------------------ */
+     ================================================================== */
+  var typeBuf = '', typeTimer;
+
   function onKey(ev) {
     var inField = ev.target === $.q;
+
+    if (state.viewing) {
+      if (ev.key === 'Escape') { ev.preventDefault(); closeViewer(); return; }
+      if (ev.key === 'ArrowRight') { ev.preventDefault(); step(1); return; }
+      if (ev.key === 'ArrowLeft') { ev.preventDefault(); step(-1); return; }
+    }
 
     if (ev.key === 'k' && (ev.ctrlKey || ev.metaKey)) {
       ev.preventDefault(); openSearch(true); return;
@@ -938,7 +1874,20 @@
     if (ev.key === 'Enter' && state.cursor >= 0) {
       var node = document.querySelectorAll('.item')[state.cursor];
       var lnk = node && node.querySelector('.item__link');
-      if (lnk) { ev.preventDefault(); location.href = lnk.href; }
+      if (lnk) { ev.preventDefault(); lnk.click(); }
+      return;
+    }
+    /* type-ahead: letters jump to the first matching name */
+    if (!inField && !ev.ctrlKey && !ev.metaKey && !ev.altKey &&
+        ev.key.length === 1 && ev.key !== ' ') {
+      typeBuf += ev.key.toLowerCase();
+      clearTimeout(typeTimer);
+      typeTimer = setTimeout(function () { typeBuf = ''; }, 900);
+      for (var i = 0; i < state.visible.length; i++) {
+        if (state.visible[i].name.toLowerCase().indexOf(typeBuf) === 0) {
+          state.cursor = i; moveCursor(); break;
+        }
+      }
     }
   }
 
@@ -948,9 +1897,9 @@
     if (nodes[state.cursor]) nodes[state.cursor].scrollIntoView({ block: 'nearest' });
   }
 
-  /* ------------------------------------------------------------------
+  /* ==================================================================
      Go
-     ------------------------------------------------------------------ */
+     ================================================================== */
   applyTheme(LS.get('theme', 'auto'));
 
   if (document.readyState === 'loading') {

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- bump ?v= on every asset change: proxies and browsers cache these, and a
      stale css/js pair is the one way this can break after an update -->
-<link rel="stylesheet" href="/.m3listing/m3listing.css?v=2">
+<link rel="stylesheet" href="/.m3listing/m3listing.css?v=5">
 
 <script>
 /* Runs before paint: marks the document as JS-capable (so a no-JS client
@@ -28,11 +28,12 @@
 window.M3LISTING = {
   title: 'public',        /* the name shown on the page                     */
   lang:  'auto'           /* 'auto' | 'ru' | 'en'                           */
-  /* repoUrl: '…'            override the credit link in the footer         */
+  /* repoUrl: '…'            override the credit link in the rail          */
 };
 /* --------------------------------------------------------------------- */
 </script>
-<script defer src="/.m3listing/m3listing.js?v=2"></script>
+<script defer src="/.m3listing/m3listing-probe.js?v=5"></script>
+<script defer src="/.m3listing/m3listing.js?v=5"></script>
 </head>
 
 <body>
@@ -63,6 +64,10 @@ window.M3LISTING = {
     </div>
   </div>
   <div class="rail__bottom">
+    <a class="rail-item rail-item--circle" id="m3l-repo" target="_blank" rel="noopener">
+      <span class="rail-item__ico"><span class="gs">code</span></span>
+      <span class="rail-item__lbl"></span>
+    </a>
     <button class="rail-item rail-item--circle" id="m3l-theme" type="button">
       <span class="rail-item__ico"><span class="gs">contrast</span></span>
       <span class="rail-item__lbl"></span>
@@ -83,7 +88,15 @@ window.M3LISTING = {
           <span class="gs">close</span>
         </button>
       </div>
+      <div class="searchrow">
+        <button class="deepbtn" type="button" hidden>
+          <span class="gs">travel_explore</span><span class="deepbtn__t"></span>
+        </button>
+        <span class="deepbar" hidden></span>
+      </div>
+      <div class="chips" hidden></div>
     </div>
+    <div class="progress"><span></span></div>
   </header>
 
   <section class="hero">
@@ -110,10 +123,6 @@ window.M3LISTING = {
     <span class="gs">folder_open</span>
     <p></p>
   </div>
-
-  <footer class="foot">
-    <a href="/"></a>
-  </footer>
 </div>
 
 <div class="selbar" role="region" hidden>
@@ -124,9 +133,34 @@ window.M3LISTING = {
   <button class="selbar__btn selbar__btn--tonal" id="m3l-selcopy" type="button">
     <span class="gs">link</span><span class="selbar__t"></span>
   </button>
+  <button class="selbar__btn selbar__btn--tonal" id="m3l-sellist" type="button">
+    <span class="gs">format_list_bulleted</span><span class="selbar__t"></span>
+  </button>
   <button class="iconbtn" id="m3l-selclear" type="button">
     <span class="gs">close</span>
   </button>
+</div>
+
+<div class="viewer" hidden>
+  <div class="viewer__scrim"></div>
+  <div class="viewer__sheet" role="dialog" aria-modal="true">
+    <header class="viewer__bar">
+      <span class="viewer__name"></span>
+      <button class="iconbtn viewer__qrbtn" type="button"><span class="gs">qr_code_2</span></button>
+      <button class="iconbtn viewer__copy" type="button"><span class="gs">link</span></button>
+      <a class="iconbtn viewer__dl" download><span class="gs">download</span></a>
+      <button class="iconbtn viewer__close" type="button"><span class="gs">close</span></button>
+    </header>
+    <div class="viewer__body">
+      <div class="viewer__stage"></div>
+      <aside class="viewer__side">
+        <div class="viewer__qr" hidden></div>
+        <div class="viewer__props"></div>
+      </aside>
+    </div>
+    <button class="viewer__nav viewer__prev" type="button"><span class="gs">chevron_left</span></button>
+    <button class="viewer__nav viewer__next" type="button"><span class="gs">chevron_right</span></button>
+  </div>
 </div>
 
 <div class="toast" role="status" aria-live="polite"></div>

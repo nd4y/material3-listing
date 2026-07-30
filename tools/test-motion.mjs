@@ -184,6 +184,37 @@ check('search starts collapsed and the button expands it',
 await evaluate(`document.getElementById('m3l-searchfab').click()`);
 await sleep(500);
 
+/* ---- 2b2. filter chips, viewer, thumbnails, QR ---- */
+const feat = await evaluate(`(() => {
+  const out = {};
+  const chips = [...document.querySelectorAll('.chip')];
+  out.chips = chips.length;
+  const pic = chips.find(c => /Картинки|Pictures/.test(c.textContent));
+  if (pic) { pic.click(); out.filtered = document.querySelectorAll('.item').length; pic.click(); }
+  out.restored = document.querySelectorAll('.item').length;
+
+  const rows = [...document.querySelectorAll('.item')];
+  const md = rows.find(r => /notes\\.md/.test(r.dataset.href));
+  if (md) md.querySelector('.item__link').click();
+  out.viewerOpen = !document.querySelector('.viewer').hidden;
+  out.viewerName = document.querySelector('.viewer__name').textContent;
+  document.querySelector('.viewer__close').click();
+
+  out.thumbSlots = document.querySelectorAll('.item.has-thumb').length;
+  const q = window.M3L_QR('https://example.com/x');
+  out.qrSize = q ? q.size : 0;
+  return out;
+})()`);
+check('filter chips are built from the listing', feat.chips >= 5, feat.chips + ' chips');
+check('a chip narrows the list and releases it',
+      feat.filtered > 0 && feat.filtered < feat.restored,
+      `${feat.filtered} of ${feat.restored}`);
+check('clicking a previewable file opens the viewer',
+      feat.viewerOpen && /notes\.md/.test(feat.viewerName), feat.viewerName);
+check('pictures are marked for thumbnails', feat.thumbSlots > 0, feat.thumbSlots + ' rows');
+check('the QR encoder returns a matrix', feat.qrSize >= 21, feat.qrSize + '×' + feat.qrSize);
+await sleep(700);   /* let the viewer finish closing before hover tests */
+
 /* ---- 2c. multi-select ---- */
 const sel = await evaluate(`(() => {
   const chips = document.querySelectorAll('.item__ico');
@@ -205,9 +236,14 @@ check('download action is live for files', sel.dlEnabled, String(sel.dlEnabled))
 /* ---- 3. hover really morphs shape / colour / FILL ---- */
 const box = await evaluate(`(() => {
   const n = document.querySelectorAll('.item')[1];
+  n.scrollIntoView({ block: 'center' });
   const r = n.getBoundingClientRect();
-  return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)];
+  const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+  const hit = document.elementFromPoint(x, y);
+  return [x, y, hit ? (hit.className || hit.tagName) : 'nothing'];
 })()`);
+check('the hover probe actually lands on a row',
+      /item/.test(String(box[2])), `hit ${box[2]} at ${box[0]},${box[1]}`);
 
 const before = await evaluate(`(() => {
   const n = document.querySelectorAll('.item')[1];

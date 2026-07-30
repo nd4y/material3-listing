@@ -9,6 +9,7 @@ $assets = Join-Path $demo '.m3listing'
 New-Item -ItemType Directory -Force -Path $assets | Out-Null
 Copy-Item (Join-Path $dist 'm3listing.css') $assets -Force
 Copy-Item (Join-Path $dist 'm3listing.js')  $assets -Force
+Copy-Item (Join-Path $dist 'm3listing-probe.js') $assets -Force
 
 $top = Get-Content (Join-Path $dist 'top.html') -Raw
 $bot = Get-Content (Join-Path $dist 'bot.html') -Raw
