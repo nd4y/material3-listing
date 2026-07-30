@@ -100,6 +100,11 @@ names arrive mojibake'd.
 The asset directory name is arbitrary — it only has to match the two paths inside
 `top.html` and the two `add_*_body` directives.
 
+**After changing `m3listing.css` or `m3listing.js`, bump the `?v=` on both links in
+`top.html`.** `top.html` itself is never cached (it is a subrequest of a dynamic listing),
+but the css and js are — by the browser and by any proxy in front. A stale pair of the
+two is the one way an update can break the page.
+
 ## The design is measured, not approximated
 
 Every value below was read off the live site with Playwright computed-style probes

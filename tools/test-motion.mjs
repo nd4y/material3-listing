@@ -129,9 +129,19 @@ check('hero wash runs the site\'s 3s blur keyframes',
 check('search panel eases on height + opacity, like the site\'s nav container',
       (computed.searchwrap || '').includes('height') && (computed.searchwrap || '').includes('opacity'),
       computed.searchwrap);
-check('layout eases on resize (shell margin/padding)',
-      (computed.shell || '').includes('margin') && (computed.shell || '').includes('padding'),
-      computed.shell);
+check('layout eases on resize (rail gutter + shell padding)',
+      (computed.body || '').includes('padding') && (computed.shell || '').includes('padding'),
+      `${computed.body} || ${computed.shell}`);
+
+/* the shell must fill the space beside the rail, not hug it */
+const centring = await evaluate(`(() => {
+  const s = document.querySelector('.m3l').getBoundingClientRect();
+  const railW = document.querySelector('.rail').getBoundingClientRect().width;
+  return { left: Math.round(s.left), right: Math.round(innerWidth - s.right), railW: Math.round(railW) };
+})()`);
+check('shell is centred in the space beside the rail',
+      Math.abs((centring.left - centring.railW) - centring.right) <= 2,
+      `gap left ${centring.left - centring.railW}px, right ${centring.right}px`);
 
 /* ---- 2b. the search panel really collapses and expands ---- */
 const searchStates = await evaluate(`(() => {
