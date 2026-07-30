@@ -197,7 +197,11 @@ html:not(.m3l-js) body { padding-left: 0; }
   font-feature-settings: "liga";
   -webkit-font-smoothing: antialiased;
   font-variation-settings: "opsz" 24, "wght" 400, "FILL" 0, "GRAD" 0;
-  transition: font-variation-settings var(--d-fast) var(--ease);
+  /* opacity/transform live here rather than in the state rules below:
+     a second `transition` declaration would replace this list, not extend it */
+  transition: font-variation-settings var(--d-fast) var(--ease),
+              opacity var(--d-fast) var(--ease),
+              transform var(--d-med) var(--ease);
   user-select: none;
 }
 /* ligature names must not flash as words before the font arrives */
@@ -693,16 +697,28 @@ html:not(.gs-ready) .gs { visibility: hidden; }
 /* ---------------------------------------------------------------
    8b. Multi-select
    --------------------------------------------------------------- */
+/* The type glyph and the tick share one grid cell and cross-fade, so the
+   chip morphs into a checkbox instead of snapping (`display` cannot ease). */
 .item__ico { cursor: pointer; }
-.item__ico .gs.check { display: none; }
+.item__ico .gs { grid-area: 1 / 1; }
+.item__ico .gs.check { opacity: 0; transform: scale(.55) rotate(-14deg); }
 
-/* the chip turns into a checkbox on hover, or whenever picking is on */
-@media (hover: hover) {
-  .item__ico:hover .gs.type { display: none; }
-  .item__ico:hover .gs.check { display: block; }
+.item__ico:hover .gs.type,
+.is-picking .item__ico .gs.type,
+.item.is-sel .item__ico .gs.type { opacity: 0; transform: scale(.55); }
+
+.item__ico:hover .gs.check,
+.is-picking .item__ico .gs.check,
+.item.is-sel .item__ico .gs.check { opacity: 1; transform: none; }
+
+@media (hover: none) {
+  .item__ico:hover .gs.type { opacity: 1; transform: none; }
+  .item__ico:hover .gs.check { opacity: 0; transform: scale(.55) rotate(-14deg); }
+  .is-picking .item__ico .gs.type,
+  .item.is-sel .item__ico .gs.type { opacity: 0; transform: scale(.55); }
+  .is-picking .item__ico .gs.check,
+  .item.is-sel .item__ico .gs.check { opacity: 1; transform: none; }
 }
-.is-picking .item__ico .gs.type { display: none; }
-.is-picking .item__ico .gs.check { display: block; }
 
 .item.is-sel { background: var(--secondary-container); border-radius: var(--r-card); }
 .item.is-sel .item__ico {
@@ -710,8 +726,6 @@ html:not(.gs-ready) .gs { visibility: hidden; }
   color: var(--on-primary);
   border-radius: 28px;
 }
-.item.is-sel .item__ico .gs.type { display: none; }
-.item.is-sel .item__ico .gs.check { display: block; }
 .item.is-sel .item__name { color: var(--on-secondary-container); }
 
 /* floating action bar */

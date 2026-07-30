@@ -27,16 +27,16 @@
      ------------------------------------------------------------------ */
   var STR = {
     ru: {
-      search: 'Поиск в этой папке', up: 'Наверх', root: 'Корень', home: 'Корень',
+      search: 'Поиск в этом каталоге', up: 'Наверх', root: 'Корень', home: 'Корень',
       name: 'Имя', date: 'Дата', size: 'Размер', theme: 'Тема',
       find: 'Поиск', close: 'Закрыть',
       viewList: 'Список', viewGrid: 'Сетка',
       copy: 'Скопировать ссылку', download: 'Скачать', copied: 'Ссылка скопирована',
       pick: 'Выбрать', selected: 'Выбрано:', dl: 'Скачать', links: 'Ссылки',
       dlStarted: 'Загрузка: {n}', copiedN: 'Скопировано ссылок: {n}',
-      nothing: 'Ничего не найдено', emptyDir: 'Папка пуста', clear: 'Очистить',
-      dirs: ['папка', 'папки', 'папок'], files: ['файл', 'файла', 'файлов'],
-      folder: 'папка', empty: 'пусто'
+      nothing: 'Ничего не найдено', emptyDir: 'Каталог пуст', clear: 'Очистить',
+      dirs: ['каталог', 'каталога', 'каталогов'], files: ['файл', 'файла', 'файлов'],
+      folder: 'каталог', empty: 'пусто'
     },
     en: {
       search: 'Search this folder', up: 'Up', root: 'Root', home: 'Root',
@@ -117,16 +117,20 @@
 
   var GS_MODE = 'pending';        // 'pending' | 'font' | 'svg'
 
-  function icon(name, cls) {
+  function icon(name, cls, fb) {
     var s = document.createElement('span');
     s.className = 'gs' + (cls ? ' ' + cls : '');
     s.setAttribute('aria-hidden', 'true');
     s.dataset.i = name;
+    if (fb) s.dataset.fb = fb;
     s.textContent = name;
     if (GS_MODE === 'svg') toSvg(s);
     return s;
   }
 
+  /* The webfont carries a glyph for every extension below; the bundled SVG
+     set is deliberately coarser (one per family), so a fine-grained name
+     falls back to its family's artwork rather than bloating this file. */
   function toSvg(span) {
     var name = span.dataset.i || span.textContent.trim();
     span.textContent = '';
@@ -134,7 +138,7 @@
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     s.setAttribute('viewBox', '0 -960 960 960');
     var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    p.setAttribute('d', P[name] || P.draft);
+    p.setAttribute('d', P[name] || P[span.dataset.fb] || P.draft);
     s.appendChild(p);
     span.appendChild(s);
   }
@@ -156,59 +160,126 @@
   }
 
   /* ------------------------------------------------------------------
-     Extension → { icon, accent }.  Accents a1..a8 are container colours
-     lifted from m3.material.io's own badges, fabs and pills.
-     ------------------------------------------------------------------ */
-  var KIND = {
-    dir:     { icon: 'folder',         acc: 'a1' },
-    image:   { icon: 'image',          acc: 'a3' },
-    video:   { icon: 'movie',          acc: 'a3' },
-    audio:   { icon: 'music_note',     acc: 'a4' },
-    archive: { icon: 'folder_zip',     acc: 'a2' },
-    disk:    { icon: 'album',          acc: 'a2' },
-    exec:    { icon: 'deployed_code',  acc: 'a6' },
-    pdf:     { icon: 'picture_as_pdf', acc: 'a8' },
-    doc:     { icon: 'description',    acc: 'a7' },
-    text:    { icon: 'text_snippet',   acc: 'a7' },
-    sheet:   { icon: 'table',          acc: 'a4' },
-    slides:  { icon: 'slideshow',      acc: 'a7' },
-    code:    { icon: 'code',           acc: 'a7' },
-    shell:   { icon: 'terminal',       acc: 'a7' },
-    font:    { icon: 'font_download',  acc: 'a5' },
-    db:      { icon: 'database',       acc: 'a7' },
-    key:     { icon: 'key',            acc: 'a6' },
-    sub:     { icon: 'subtitles',      acc: 'a5' },
-    torrent: { icon: 'link',           acc: 'a5' },
-    conf:    { icon: 'settings',       acc: 'a7' },
-    file:    { icon: 'draft',          acc: 'a5' }
-  };
+     Extension → { icon, accent, svg fallback }.
 
+     The glyph is per extension — .html, .css, .js, .json, .py and .sh do
+     not all deserve the same `code` mark. The accent is per family, so the
+     page keeps eight colours rather than eighty: a1 directories, a2
+     archives and disk images, a3 pictures and video, a4 audio and sheets,
+     a5 everything else, a6 executables and installers, a7 documents, code,
+     config and crypto, a8 PDF. All eight are container colours lifted from
+     m3.material.io's own badges, fabs and pills.
+     ------------------------------------------------------------------ */
   var EXT = {};
-  (function map(groups) {
-    Object.keys(groups).forEach(function (k) {
-      groups[k].forEach(function (e) { EXT[e] = k; });
+  function reg(exts, glyph, acc, fb) {
+    exts.split(' ').forEach(function (e) {
+      EXT[e] = { icon: glyph, acc: acc, fb: fb || glyph };
     });
-  })({
-    image:   ['jpg','jpeg','png','gif','bmp','webp','svg','tif','tiff','ico','heic','heif','avif','psd','xcf','raw','cr2','nef','dng'],
-    video:   ['mp4','mkv','avi','mov','wmv','flv','webm','m4v','mpg','mpeg','ts','m2ts','vob','3gp','ogv'],
-    audio:   ['mp3','flac','wav','ogg','oga','m4a','aac','wma','opus','ape','mid','midi','aiff'],
-    archive: ['zip','rar','7z','tar','gz','tgz','bz2','tbz','xz','zst','lz','lzma','cab','arj','z'],
-    disk:    ['iso','img','dmg','vhd','vhdx','vmdk','wim','esd','nrg','mdf','cue','bin'],
-    exec:    ['exe','msi','msu','appimage','deb','rpm','apk','pkg','run','com','dll','sys','jar'],
-    pdf:     ['pdf','djvu','xps'],
-    doc:     ['doc','docx','odt','rtf','pages','epub','fb2','mobi'],
-    text:    ['txt','md','markdown','log','nfo','readme','me'],
-    sheet:   ['xls','xlsx','xlsm','ods','csv','tsv','numbers'],
-    slides:  ['ppt','pptx','odp'],
-    code:    ['js','mjs','ts','tsx','jsx','py','c','h','cpp','hpp','cc','cs','java','go','rs','php','rb','pl','lua','swift','kt','scala','r','m','vb','asm','html','htm','xhtml','css','scss','less','json','xml','svgz','tf','hcl'],
-    shell:   ['sh','bash','zsh','fish','bat','cmd','ps1','psm1','ksh'],
-    font:    ['ttf','otf','woff','woff2','eot','fon'],
-    db:      ['db','sqlite','sqlite3','sql','mdb','accdb','dump','bak'],
-    key:     ['pem','crt','cer','pfx','p12','ppk','pub','gpg','kdbx','asc','key'],
-    sub:     ['srt','ass','ssa','sub','vtt','idx'],
-    torrent: ['torrent','magnet'],
-    conf:    ['conf','cfg','ini','yaml','yml','toml','env','properties','plist','reg','service']
-  });
+  }
+
+  var DIR_KIND  = { icon: 'folder', acc: 'a1', fb: 'folder' };
+  var FILE_KIND = { icon: 'draft',  acc: 'a5', fb: 'draft'  };
+
+  /* pictures */
+  reg('jpg jpeg jfif jpe',            'photo_camera',  'a3', 'image');
+  reg('png webp avif heic heif',      'image',         'a3', 'image');
+  reg('gif',                          'gif_box',       'a3', 'image');
+  reg('bmp',                          'wallpaper',     'a3', 'image');
+  reg('tif tiff',                     'filter',        'a3', 'image');
+  reg('ico icns',                     'widgets',       'a3', 'image');
+  reg('svg svgz ai eps',              'draw',          'a3', 'image');
+  reg('psd xcf kra',                  'brush',         'a3', 'image');
+  reg('raw cr2 cr3 nef arw dng orf',  'raw_on',        'a3', 'image');
+
+  /* video */
+  reg('mp4 m4v mov',                  'movie',         'a3', 'movie');
+  reg('mkv webm',                     'local_movies',  'a3', 'movie');
+  reg('avi wmv flv mpg mpeg ts m2ts vob 3gp ogv', 'videocam', 'a3', 'movie');
+
+  /* audio */
+  reg('mp3',                          'music_note',    'a4', 'music_note');
+  reg('flac wav aiff ape',            'graphic_eq',    'a4', 'music_note');
+  reg('m4a aac ogg oga opus wma mid midi', 'audio_file', 'a4', 'music_note');
+
+  /* archives */
+  reg('zip tar tgz gz bz2 tbz xz zst lz lzma z', 'folder_zip', 'a2', 'folder_zip');
+  reg('rar arj',                      'archive',       'a2', 'folder_zip');
+  reg('7z',                           'inventory_2',   'a2', 'folder_zip');
+  reg('cab',                          'package_2',     'a2', 'folder_zip');
+
+  /* disk images and virtual machines */
+  reg('iso',                          'album',         'a2', 'album');
+  reg('img dmg nrg mdf cue',          'disc_full',     'a2', 'album');
+  reg('vhd vhdx vmdk ova ovf qcow2 svm', 'hard_drive', 'a2', 'album');
+  reg('wim esd',                      'storage',       'a2', 'album');
+
+  /* executables, libraries, installers */
+  reg('exe com',                      'deployed_code', 'a6', 'deployed_code');
+  reg('msi msix msp appx',            'package_2',     'a6', 'deployed_code');
+  reg('msu',                          'update',        'a6', 'deployed_code');
+  reg('dll so dylib sys ocx',         'memory',        'a6', 'deployed_code');
+  reg('lib a',                        'inventory',     'a6', 'deployed_code');
+  reg('exp def map',                  'schema',        'a6', 'deployed_code');
+  reg('apk aab',                      'android',       'a6', 'deployed_code');
+  reg('deb rpm pkg snap flatpak',     'inventory_2',   'a6', 'deployed_code');
+  reg('appimage run jar',             'terminal',      'a6', 'deployed_code');
+  reg('sh bash zsh fish ksh bat cmd ps1 psm1', 'terminal', 'a6', 'terminal');
+
+  /* certificates, keys, signatures */
+  reg('pem',                          'verified_user', 'a7', 'key');
+  reg('key ppk',                      'key',           'a7', 'key');
+  reg('pfx p12',                      'password',      'a7', 'key');
+  reg('crt cer der',                  'badge',         'a7', 'key');
+  reg('pub',                          'vpn_key',       'a7', 'key');
+  reg('csr',                          'contract',      'a7', 'key');
+  reg('srl',                          'token',         'a7', 'key');
+  reg('cms p7b p7s',                  'encrypted',     'a7', 'key');
+  reg('ors',                          'policy',        'a7', 'key');
+  reg('attr',                         'label',         'a7', 'key');
+  reg('gpg asc sig',                  'lock',          'a7', 'key');
+  reg('kdbx',                         'shield',        'a7', 'key');
+  reg('lic',                          'workspace_premium', 'a7', 'key');
+
+  /* markup, code, config */
+  reg('html htm xhtml',               'html',          'a7', 'code');
+  reg('css scss sass less',           'css',           'a7', 'code');
+  reg('js mjs cjs jsx ts tsx',        'javascript',    'a7', 'code');
+  reg('php',                          'php',           'a7', 'code');
+  reg('json json5',                   'data_object',   'a7', 'code');
+  reg('xml plist xsd xsl',            'data_array',    'a7', 'code');
+  reg('yaml yml toml ini conf cnf cfg env properties reg service', 'settings', 'a7', 'settings');
+  reg('py ipynb',                     'code_blocks',   'a7', 'code');
+  reg('c cc cpp cxx java kt go rs rb lua swift scala vb asm cs r tf hcl', 'code', 'a7', 'code');
+  reg('h hpp hxx',                    'integration_instructions', 'a7', 'code');
+  reg('pl pm t pod',                  'api',           'a7', 'code');
+  reg('sct vbs wsf',                  'frame_source',  'a7', 'code');
+  reg('tmpl inc',                     'web_asset',     'a7', 'code');
+  reg('sql',                          'database',      'a7', 'database');
+  reg('db sqlite sqlite3 mdb accdb',  'storage',       'a7', 'database');
+  reg('dump bak',                     'backup',        'a7', 'database');
+
+  /* documents */
+  reg('txt utf8 full text',           'article',       'a7', 'text_snippet');
+  reg('md markdown rst adoc',         'notes',         'a7', 'text_snippet');
+  reg('log',                          'list_alt',      'a7', 'text_snippet');
+  reg('nfo readme me',                'sticky_note_2', 'a7', 'text_snippet');
+  reg('doc docx odt rtf pages',       'description',   'a7', 'description');
+  reg('epub fb2 mobi azw3 djvu',      'menu_book',     'a7', 'description');
+  reg('ics ical',                     'event',         'a7', 'description');
+  reg('rdp vnc ica',                  'desktop_windows', 'a7', 'description');
+  reg('dat bin msb external',         'save',          'a5', 'draft');
+  reg('pdf xps',                      'picture_as_pdf','a8', 'picture_as_pdf');
+
+  /* sheets and slides */
+  reg('xls xlsx xlsm ods numbers',    'table',         'a4', 'table');
+  reg('csv tsv',                      'grid_on',       'a4', 'table');
+  reg('ppt pptx odp key-note',        'slideshow',     'a7', 'slideshow');
+
+  /* the rest */
+  reg('ttf otf woff woff2 eot fon',   'font_download', 'a5', 'font_download');
+  reg('srt ass ssa sub vtt idx',      'subtitles',     'a5', 'subtitles');
+  reg('torrent magnet',               'link',          'a5', 'link');
+  reg('lnk url webloc',               'link',          'a5', 'link');
 
   /* ------------------------------------------------------------------
      Helpers
@@ -261,9 +332,20 @@
   }
 
   function kindOf(entry) {
-    if (entry.isDir) return KIND.dir;
-    return KIND[EXT[ext(entry.name)] || 'file'] || KIND.file;
+    if (entry.isDir) return DIR_KIND;
+    return EXT[ext(entry.name)] || FILE_KIND;
   }
+
+  /* every ligature the page can ask the webfont for — the test suite
+     renders each one and fails if it comes back as letters */
+  window.M3L_GLYPHS = (function () {
+    var seen = { folder: 1, draft: 1 };
+    Object.keys(EXT).forEach(function (e) { seen[EXT[e].icon] = 1; });
+    ['folder_open', 'home', 'arrow_upward', 'arrow_downward', 'search', 'close',
+     'grid_view', 'view_list', 'check_box', 'check', 'contrast', 'light_mode',
+     'dark_mode', 'download', 'chevron_right', 'link'].forEach(function (n) { seen[n] = 1; });
+    return Object.keys(seen);
+  })();
 
   /* ------------------------------------------------------------------
      Read the nginx autoindex output
@@ -739,7 +821,7 @@
 
     /* the leading chip doubles as the checkbox */
     var ico = el('span', 'item__ico');
-    ico.appendChild(icon(k.icon, 'type'));
+    ico.appendChild(icon(k.icon, 'type', k.fb));
     ico.appendChild(icon('check', 'check'));
     ico.addEventListener('click', function (ev) {
       ev.preventDefault();

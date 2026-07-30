@@ -143,6 +143,31 @@ check('shell is centred in the space beside the rail',
       Math.abs((centring.left - centring.railW) - centring.right) <= 2,
       `gap left ${centring.left - centring.railW}px, right ${centring.right}px`);
 
+/* ---- 2a. every glyph the page can ask for is a real ligature ----
+   A name the font does not know renders as its letters, which is several
+   times wider than the 24px glyph box — that is what this measures. */
+const glyphs = await evaluate(`(() => {
+  const names = window.M3L_GLYPHS || [];
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;left:-9999px;top:0;visibility:visible';
+  document.body.appendChild(box);
+  const bad = [];
+  for (const n of names) {
+    const s = document.createElement('span');
+    s.className = 'gs';
+    s.style.visibility = 'visible';
+    s.textContent = n;
+    box.appendChild(s);
+    const w = s.getBoundingClientRect().width;
+    if (w > 34) bad.push(n + ' (' + Math.round(w) + 'px)');
+    s.remove();
+  }
+  box.remove();
+  return { total: names.length, bad };
+})()`);
+check(`all ${glyphs.total} glyph names exist in the webfont`,
+      glyphs.bad.length === 0, glyphs.bad.join(', ') || `${glyphs.total} checked`);
+
 /* ---- 2b. the search panel really collapses and expands ---- */
 const searchStates = await evaluate(`(() => {
   const w = document.getElementById('m3l-searchwrap');
