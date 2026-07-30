@@ -45,6 +45,20 @@
       deep: 'Искать во всех подкаталогах', deepStop: 'Остановить',
       deepDone: 'Просмотрено каталогов: {n}', deepIn: 'в {p}',
       calcSize: 'Посчитать размер', calculating: 'считаю…',
+      lang: 'Язык', langAuto: 'Как в системе', langRu: 'Русский', langEn: 'English',
+      ddTitle: 'Скачать каталог', ddSub: 'Целиком, со вложенными каталогами',
+      ddHere: 'Скачать этот каталог',
+      ddFs: 'Сохранить на диск', ddWget: 'Команда wget', ddAria: 'Список для aria2c',
+      ddFsHint: 'Браузер спросит, куда складывать. Структура каталогов сохранится, '
+              + 'уже скачанные файлы того же размера пропускаются.',
+      ddNoFs: 'Сохранение прямо на диск умеют Chrome и Edge. В остальных браузерах '
+            + 'возьмите команду или список — они надёжнее и качают с докачкой.',
+      ddScan: 'Считаю дерево…', ddScanned: 'Найдено: {n} файлов, {s}',
+      ddGo: 'Скачано {i} из {n} · {done} из {total}',
+      ddSkip: 'пропущено (уже скачано): {n}',
+      ddDone: 'Готово: {n} файлов', ddCancel: 'Отмена', ddClose: 'Закрыть',
+      ddCopied: 'Команда скопирована', ddListed: 'Список сохранён',
+      ddFail: 'Не получилось: {e}',
       qr: 'QR-код', noPreview: 'Предпросмотр недоступен',
       loading: 'Читаю…', probeFail: 'Свойства прочитать не удалось',
       inside: 'Внутри архива', more: 'и ещё {n}',
@@ -83,6 +97,20 @@
       deep: 'Search all subdirectories', deepStop: 'Stop',
       deepDone: '{n} directories scanned', deepIn: 'in {p}',
       calcSize: 'Measure size', calculating: 'measuring…',
+      lang: 'Language', langAuto: 'System', langRu: 'Русский', langEn: 'English',
+      ddTitle: 'Download directory', ddSub: 'Everything in it, subdirectories included',
+      ddHere: 'Download this directory',
+      ddFs: 'Save to disk', ddWget: 'wget command', ddAria: 'aria2c list',
+      ddFsHint: 'The browser will ask where to put it. The directory structure is kept '
+              + 'and files already there with the same size are skipped.',
+      ddNoFs: 'Saving straight to disk works in Chrome and Edge. Elsewhere take the '
+            + 'command or the list — they resume, which matters for large trees.',
+      ddScan: 'Walking the tree…', ddScanned: 'Found {n} files, {s}',
+      ddGo: '{i} of {n} · {done} of {total}',
+      ddSkip: 'skipped (already there): {n}',
+      ddDone: 'Done: {n} files', ddCancel: 'Cancel', ddClose: 'Close',
+      ddCopied: 'Command copied', ddListed: 'List saved',
+      ddFail: 'Failed: {e}',
       qr: 'QR code', noPreview: 'No preview available',
       loading: 'Reading…', probeFail: 'Could not read the properties',
       inside: 'Archive contents', more: 'and {n} more',
@@ -106,11 +134,30 @@
                 bin: 'Programs', other: 'Other' }
     }
   };
-  var LANG = CFG.lang === 'auto'
-    ? (/^ru\b/i.test(navigator.language || '') ? 'ru' : 'en')
-    : CFG.lang;
-  var T = STR[LANG] || STR.en;
-  var LOCALE = LANG === 'ru' ? 'ru-RU' : 'en-GB';
+  /* The language is re-selectable at runtime, so everything derived from it
+     is a plain var reset by setLang() rather than a one-shot constant. */
+  var LANG, T, LOCALE, UNITS, DATE_FMT, COLLATOR;
+
+  function detectLang() {
+    return /^ru\b/i.test(navigator.language || '') ? 'ru' : 'en';
+  }
+
+  function setLang(mode) {
+    LANG = (!mode || mode === 'auto')
+      ? (CFG.lang && CFG.lang !== 'auto' ? CFG.lang : detectLang())
+      : mode;
+    if (!STR[LANG]) LANG = 'en';
+    T = STR[LANG];
+    LOCALE = LANG === 'ru' ? 'ru-RU' : 'en-GB';
+    UNITS = LANG === 'ru' ? ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ', 'ПБ']
+                          : ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    DATE_FMT = new Intl.DateTimeFormat(LOCALE, {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    });
+    COLLATOR = new Intl.Collator(LOCALE, { numeric: true, sensitivity: 'base' });
+    document.documentElement.lang = LANG;
+  }
 
   function plural(n, forms) {
     if (LANG !== 'ru') return n === 1 ? forms[0] : forms[1];
@@ -375,10 +422,6 @@
     return { bytes: Math.round(v * Math.pow(1024, pow)), exact: false };
   }
 
-  var UNITS = LANG === 'ru'
-    ? ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ', 'ПБ']
-    : ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-
   function fmtSize(bytes) {
     if (bytes == null) return '';
     if (bytes < 1024) return bytes.toLocaleString(LOCALE) + ' ' + UNITS[0];
@@ -389,11 +432,6 @@
       maximumFractionDigits: v < 10 ? 1 : 0
     }) + ' ' + UNITS[i];
   }
-
-  var DATE_FMT = new Intl.DateTimeFormat(LOCALE, {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false
-  });
 
   function ext(name) {
     var i = name.lastIndexOf('.');
@@ -552,7 +590,14 @@
     $.view = document.getElementById('m3l-view');
     $.pick = document.getElementById('m3l-pick');
     $.theme = document.getElementById('m3l-theme');
+    $.lang = document.getElementById('m3l-lang');
     $.repo = document.getElementById('m3l-repo');
+    $.ddHere = ui.querySelector('.ddhere');
+    $.dlg = document.querySelector('.dialog');
+    $.ddFs = document.getElementById('m3l-dd-fs');
+    $.ddWget = document.getElementById('m3l-dd-wget');
+    $.ddAria = document.getElementById('m3l-dd-aria');
+    $.ddClose = document.getElementById('m3l-dd-close');
     $.selbar = document.querySelector('.selbar');
     $.seldl = document.getElementById('m3l-seldl');
     $.selcopy = document.getElementById('m3l-selcopy');
@@ -562,9 +607,7 @@
 
   function wireChrome(ui) {
     /* rail */
-    $.home.querySelector('.rail-item__lbl').textContent = T.home;
     $.home.addEventListener('click', function (ev) { ev.preventDefault(); go('/', true); });
-    $.up.querySelector('.rail-item__lbl').textContent = T.up;
     $.up.addEventListener('click', function () {
       if (state.parentHref) go(new URL(state.parentHref, location.href).href, true);
     });
@@ -573,11 +616,7 @@
       LS.set('view', state.view);
       syncView(); render();
     });
-    syncView();
-    $.pick.querySelector('.rail-item__lbl').textContent = T.pick;
     $.pick.addEventListener('click', function () { setPicking(!state.picking); });
-    $.theme.title = T.theme;
-    $.theme.querySelector('.rail-item__lbl').textContent = T.theme;
     $.theme.addEventListener('click', function () {
       var order = ['auto', 'light', 'dark'];
       var next = order[(order.indexOf(LS.get('theme', 'auto')) + 1) % 3];
@@ -585,18 +624,21 @@
       applyTheme(next);
       syncTheme(next);
     });
-    syncTheme(LS.get('theme', 'auto'));
+    $.lang.addEventListener('click', function () {
+      var order = ['auto', 'ru', 'en'];
+      var next = order[(order.indexOf(LS.get('lang', 'auto')) + 1) % 3];
+      LS.set('lang', next);
+      setLang(next);
+      applyStrings();
+      render();
+    });
 
     /* the credit lives in the rail, where the site keeps its own
        secondary controls — a lone link under the list read as debris */
     $.repo.href = CFG.repoUrl || REPO;
     $.repo.title = (CFG.repoUrl || REPO).replace(/^https?:\/\//, '');
-    $.repo.querySelector('.rail-item__lbl').textContent = T.source;
 
     /* search */
-    $.q.placeholder = T.search;
-    $.clear.title = T.clear;
-    $.fab.querySelector('.rail-item__lbl').textContent = T.find;
     syncSearch(false);
     $.q.addEventListener('input', onQuery);
     $.clear.addEventListener('click', function () {
@@ -607,7 +649,6 @@
     });
 
     /* deep search */
-    $.deepBtn.querySelector('.deepbtn__t').textContent = T.deep;
     $.deepBtn.addEventListener('click', function () {
       if (state.deep) stopDeep(); else startDeep();
     });
@@ -615,8 +656,6 @@
     /* sort tabs */
     ['name', 'date', 'size'].forEach(function (k) {
       var b = $.tabs.querySelector('[data-sort="' + k + '"]');
-      b.textContent = T[k];
-      b.appendChild(icon('arrow_upward', 'dir'));
       b.addEventListener('click', function () {
         if (state.sort === k) state.desc = !state.desc;
         else { state.sort = k; state.desc = (k !== 'name'); }
@@ -624,12 +663,8 @@
         syncSort(); render();
       });
     });
-    syncSort();
 
     /* selection bar */
-    $.seldl.querySelector('.selbar__t').textContent = T.dl;
-    $.selcopy.querySelector('.selbar__t').textContent = T.links;
-    $.sellist.querySelector('.selbar__t').textContent = T.asList;
     $.seldl.addEventListener('click', downloadSelected);
     $.selcopy.addEventListener('click', copySelected);
     $.sellist.addEventListener('click', copyAsList);
@@ -646,6 +681,62 @@
     document.addEventListener('keydown', onKey);
     addEventListener('popstate', function () { go(location.href, false); });
     wireViewer();
+    wireDirDownload(ui);
+    applyStrings();
+  }
+
+  /* Every visible string in one place, so switching language is a relabel
+     plus a render rather than a reload. */
+  function applyStrings() {
+    var lbl = function (node, text) { node.querySelector('.rail-item__lbl').textContent = text; };
+    lbl($.fab, T.find);
+    lbl($.home, T.home);
+    lbl($.up, T.up);
+    lbl($.pick, T.pick);
+    lbl($.repo, T.source);
+    lbl($.theme, T.theme);
+    $.theme.title = T.theme;
+    lbl($.lang, T.lang);
+
+    $.q.placeholder = T.search;
+    $.clear.title = T.clear;
+    $.deepBtn.querySelector('.deepbtn__t').textContent = T.deep;
+
+    ['name', 'date', 'size'].forEach(function (k) {
+      var b = $.tabs.querySelector('[data-sort="' + k + '"]');
+      b.textContent = T[k];
+      b.appendChild(icon('arrow_upward', 'dir'));
+    });
+
+    $.seldl.querySelector('.selbar__t').textContent = T.dl;
+    $.selcopy.querySelector('.selbar__t').textContent = T.links;
+    $.sellist.querySelector('.selbar__t').textContent = T.asList;
+
+    $.ddHere.querySelector('.ddhere__t').textContent = T.ddHere;
+    $.dlg.querySelector('.dialog__title').textContent = T.ddTitle;
+    $.ddFs.querySelector('.dlgbtn__t').textContent = T.ddFs;
+    $.ddWget.querySelector('.dlgbtn__t').textContent = T.ddWget;
+    $.ddAria.querySelector('.dlgbtn__t').textContent = T.ddAria;
+    $.ddClose.textContent = T.ddClose;
+
+    $.vQrBtn.title = T.qr;
+    $.vDl.title = T.download;
+    $.vCopy.title = T.copy;
+
+    syncView();
+    syncSort();
+    syncTheme(LS.get('theme', 'auto'));
+    syncLang();
+    syncSearch($.wrap.classList.contains('is-open'));
+    if (state.path) applyListing(state.path, state.entries, state.parentHref);
+  }
+
+  function syncLang() {
+    var mode = LS.get('lang', 'auto');
+    $.lang.querySelector('.rail-item__lbl').textContent =
+      mode === 'auto' ? T.lang : (mode === 'ru' ? T.langRu : T.langEn);
+    $.lang.setAttribute('data-mode', mode);
+    $.lang.title = mode === 'auto' ? T.langAuto : (mode === 'ru' ? T.langRu : T.langEn);
   }
 
   /* ==================================================================
@@ -849,6 +940,175 @@
   }
 
   /* ==================================================================
+     Downloading a whole directory.
+
+     Three routes, because none of them is right everywhere:
+       · File System Access — the only one that recreates the tree on disk
+         and streams straight to it, but Chromium only;
+       · a wget command — one line, works anywhere, resumes, and needs no
+         crawl at all since wget walks the listings itself;
+       · an aria2c input file — the crawl we can do here turned into paths
+         a real downloader can act on.
+     ================================================================== */
+  var ddTarget = null, ddAbort = null, ddRunning = false;
+
+  function wireDirDownload(ui) {
+    $.ddHere.addEventListener('click', function () { openDD({ href: location.href, name: '' }); });
+    $.dlg.querySelector('.dialog__scrim').addEventListener('click', closeDD);
+    $.ddClose.addEventListener('click', closeDD);
+    $.ddFs.hidden = !window.showDirectoryPicker;
+    $.ddFs.addEventListener('click', function () { fsaDownload(ddTarget); });
+    $.ddWget.addEventListener('click', function () {
+      copyText(wgetCmd(ddTarget.href), T.ddCopied);
+    });
+    $.ddAria.addEventListener('click', function () { ariaList(ddTarget); });
+  }
+
+  function openDD(entry) {
+    ddTarget = entry;
+    $.dlg.hidden = false;
+    requestAnimationFrame(function () { $.dlg.classList.add('show'); });
+    $.dlg.querySelector('.dialog__sub').textContent =
+      (entry.name || decodeURIComponent(new URL(entry.href).pathname)) + ' — ' + T.ddSub;
+    $.dlg.querySelector('.dialog__hint').textContent =
+      window.showDirectoryPicker ? T.ddFsHint : T.ddNoFs;
+    ddProgress(null);
+  }
+
+  function closeDD() {
+    if (ddRunning && ddAbort) ddAbort.cancelled = true;
+    ddRunning = false;
+    $.dlg.classList.remove('show');
+    setTimeout(function () { if (!$.dlg.classList.contains('show')) $.dlg.hidden = true; }, 320);
+  }
+
+  function ddProgress(text, frac, file) {
+    var box = $.dlg.querySelector('.dialog__prog');
+    box.hidden = text == null;
+    if (text == null) return;
+    $.dlg.querySelector('.dialog__stat').textContent = text;
+    $.dlg.querySelector('.dialog__file').textContent = file || '';
+    var bar = $.dlg.querySelector('.dialog__bar span');
+    bar.style.width = frac == null ? '100%' : Math.round(frac * 100) + '%';
+    bar.classList.toggle('is-indeterminate', frac == null);
+  }
+
+  /* wget walks the autoindex pages itself, so this needs no crawl —
+     --cut-dirs strips exactly the depth of the directory being fetched */
+  function wgetCmd(href) {
+    var u = new URL(href, location.href);
+    var depth = u.pathname.split('/').filter(Boolean).length;
+    return 'wget -r -np -nH --cut-dirs=' + depth +
+           ' -R "index.html*" -e robots=off ' + JSON.stringify(u.href);
+  }
+
+  function relParts(fileHref, baseHref) {
+    var b = new URL(baseHref, location.href).pathname;
+    var p = new URL(fileHref, location.href).pathname;
+    var rel = p.indexOf(b) === 0 ? p.slice(b.length) : p;
+    try { rel = decodeURIComponent(rel); } catch (e) {}
+    return rel.split('/').filter(Boolean);
+  }
+
+  function scanTree(entry, onProgress) {
+    var files = [], bytes = 0;
+    return new Promise(function (res) {
+      ddAbort = crawl(entry.href, {
+        onEntry: function (e) {
+          if (e.isDir) return;
+          files.push(e);
+          bytes += e.size || 0;
+        },
+        onProgress: function () { onProgress(files.length, bytes); },
+        onDone: function () { res({ files: files, bytes: bytes }); }
+      });
+    });
+  }
+
+  function ariaList(entry) {
+    ddRunning = true;
+    ddProgress(T.ddScan, null);
+    scanTree(entry, function (n, b) {
+      ddProgress(fill(T.ddScanned, { n: n, s: fmtSize(b) }), null);
+    }).then(function (r) {
+      if (!ddRunning) return;
+      var lines = r.files.map(function (f) {
+        return abs(f.href) + '\n  out=' + relParts(f.href, entry.href).join('/');
+      }).join('\n');
+      var name = (entry.name || 'directory') + '.aria2.txt';
+      var a = el('a');
+      a.href = URL.createObjectURL(new Blob([lines], { type: 'text/plain' }));
+      a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+      ddProgress(fill(T.ddScanned, { n: r.files.length, s: fmtSize(r.bytes) }), 1,
+                 'aria2c -i ' + name + ' -d . -c -x4');
+      toast(T.ddListed);
+      ddRunning = false;
+    });
+  }
+
+  async function fsaDownload(entry) {
+    var root;
+    try {
+      root = await window.showDirectoryPicker({ mode: 'readwrite', id: 'm3listing' });
+    } catch (e) { return; }                      /* the picker was dismissed */
+
+    ddRunning = true;
+    ddProgress(T.ddScan, null);
+    var tree = await scanTree(entry, function (n, b) {
+      ddProgress(fill(T.ddScanned, { n: n, s: fmtSize(b) }), null);
+    });
+    if (!ddRunning) return;
+
+    var done = 0, skipped = 0, bytes = 0;
+    for (var i = 0; i < tree.files.length; i++) {
+      if (!ddRunning) break;
+      var f = tree.files[i];
+      var parts = relParts(f.href, entry.href);
+      ddProgress(fill(T.ddGo, {
+        i: i + 1, n: tree.files.length,
+        done: fmtSize(bytes), total: fmtSize(tree.bytes)
+      }), tree.bytes ? bytes / tree.bytes : (i + 1) / tree.files.length, parts.join('/'));
+      try {
+        var how = await saveOne(root, parts, f.href, f.exact ? f.size : 0);
+        if (how === 'skip') skipped++;
+      } catch (e) {
+        ddProgress(fill(T.ddFail, { e: e.message }), null, parts.join('/'));
+        ddRunning = false;
+        return;
+      }
+      done++;
+      bytes += f.size || 0;
+    }
+    ddProgress(fill(T.ddDone, { n: done }) +
+               (skipped ? ' · ' + fill(T.ddSkip, { n: skipped }) : ''), 1, '');
+    ddRunning = false;
+  }
+
+  /* streams the response straight into the file, so a 4 GB image never
+     sits in memory; a file already there at the same size is left alone */
+  async function saveOne(root, parts, url, expectSize) {
+    var dir = root;
+    for (var i = 0; i < parts.length - 1; i++) {
+      dir = await dir.getDirectoryHandle(parts[i], { create: true });
+    }
+    var name = parts[parts.length - 1];
+    if (expectSize) {
+      try {
+        var have = await (await dir.getFileHandle(name)).getFile();
+        if (have.size === expectSize) return 'skip';
+      } catch (e) {}
+    }
+    var fh = await dir.getFileHandle(name, { create: true });
+    var w = await fh.createWritable();
+    var r = await fetch(url, { credentials: 'same-origin' });
+    if (!r.ok) { try { await w.abort(); } catch (e) {} throw new Error('HTTP ' + r.status); }
+    await r.body.pipeTo(w);
+    return 'ok';
+  }
+
+  /* ==================================================================
      Search field
      ================================================================== */
   function onQuery() {
@@ -1048,8 +1308,6 @@
   /* ==================================================================
      Render
      ================================================================== */
-  var COLLATOR = new Intl.Collator(LOCALE, { numeric: true, sensitivity: 'base' });
-
   function render() {
     var q = state.query.toLowerCase();
     var deep = !!state.deepHits;
@@ -1177,10 +1435,14 @@
     a.appendChild(ico);
 
     var body = el('span', 'item__body');
+    /* the badge is a sibling of the name, not a child: inside it, a long
+       name's ellipsis swallows the badge or shoves it off the row */
+    var title = el('span', 'item__title');
     var nm = el('span', 'item__name');
     nm.appendChild(highlight(e.name, q));
-    if (isFresh(e)) nm.appendChild(el('span', 'freshdot', T.fresh));
-    body.appendChild(nm);
+    title.appendChild(nm);
+    if (isFresh(e)) title.appendChild(el('span', 'freshdot', T.fresh));
+    body.appendChild(title);
 
     var meta = el('span', 'item__meta');
     var bits = [];
@@ -1205,6 +1467,15 @@
         ev.preventDefault(); ev.stopPropagation(); measure(e, a);
       });
       tail.appendChild(msr);
+
+      var ddb = el('button', 'iconbtn hoveronly');
+      ddb.type = 'button';
+      ddb.title = T.ddTitle;
+      ddb.appendChild(icon('download'));
+      ddb.addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation(); openDD(e);
+      });
+      tail.appendChild(ddb);
     } else {
       var inf = el('button', 'iconbtn hoveronly');
       inf.type = 'button';
@@ -1901,6 +2172,7 @@
      Go
      ================================================================== */
   applyTheme(LS.get('theme', 'auto'));
+  setLang(LS.get('lang', 'auto'));
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { safe(boot); });

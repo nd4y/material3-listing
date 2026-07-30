@@ -66,7 +66,8 @@ $rows = @(
   '<a href="track.flac">track.flac</a>                                         18-Jul-2026 08:39     38M',
   '<a href="photo.jpg">photo.jpg</a>                                          18-Jul-2026 08:40    4.4M',
   '<a href="logo.svg">logo.svg</a>                                           18-Jul-2026 08:41   18432',
-  '<a href="anim.gif">anim.gif</a>                                           18-Jul-2026 08:42    1.2M'
+  '<a href="anim.gif">anim.gif</a>                                           18-Jul-2026 08:42    1.2M',
+  '<a href="a-deliberately-very-long-file-name-that-should-force-the-row-to-ellipsise-v2026.07.29-final.tar.zst">a-deliberately-very-long-file-name-that-should-fo..&gt;</a> 29-Jul-2026 23:10     91M'
 )
 
 $nginx = "`r`n`r`n<body>`r`n<h1>Index of /</h1><hr><pre>" + ($rows -join "`r`n") + "`r`n</pre><hr>`r`n"

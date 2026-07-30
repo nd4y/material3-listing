@@ -25,6 +25,10 @@ Three static files. Drop them next to the share and add two lines to nginx.
     <td><img src="screenshots/grid-dark.png" alt="Grid view"></td>
   </tr>
   <tr>
+    <td><img src="screenshots/feat-zip-light.png" alt="An archive's contents, read over Range"></td>
+    <td><img src="screenshots/feat-deep-dark.png" alt="Recursive search across the tree"></td>
+  </tr>
+  <tr>
     <td><img src="screenshots/hover.png" alt="Hover: corner and icon-fill morph"></td>
     <td><img src="screenshots/mobile-select.png" alt="Mobile bottom bar"></td>
   </tr>
@@ -183,6 +187,24 @@ would add is exact sizes — which `autoindex_exact_size on` gives for free.
 served from that location, not just listings. That is why the fallback path matters: for a
 real HTML file there is no `pre`, the script bails out and the file renders as itself.
 
+## Downloading a whole directory
+
+No backend means no server-side zip, so the dialog offers the three routes that actually
+work, and says plainly which is which:
+
+- **Save to disk** — the File System Access API. The browser asks once where to put it,
+  then the tree is recreated on disk and every file is streamed straight into it with
+  `response.body.pipeTo(writable)`, so a 4 GB image never sits in memory. Files already
+  present at the same size are skipped, which makes an interrupted run resumable.
+  Chromium only; the button hides itself elsewhere.
+- **wget command** — one line, copied to the clipboard, no crawl needed at all: wget walks
+  the autoindex pages itself. `--cut-dirs` is filled in from the depth of the directory.
+- **aria2c list** — the tree is walked here and written out as an aria2 input file with
+  `out=` paths, so the structure survives. Hand it to `aria2c -i list.txt -c -x4`.
+
+The flat "queue every file as a browser download" approach is deliberately not offered:
+the `download` attribute strips path separators, so a tree arrives as a heap.
+
 ## Reading files without downloading them
 
 nginx serves static files with `Accept-Ranges: bytes`, and a few kilobytes from the head
@@ -238,7 +260,8 @@ collect 429s instead of answers.
   "allow multiple downloads?" question to a single prompt. There is no backend, so there is
   no server-side zip — folders can be selected for their links but not downloaded
 - Folder totals: item counts and the summed size of what is currently shown
-- Russian and English UI, auto-selected from `navigator.language`
+- Russian and English UI: it follows the system language, and the globe in the rail
+  cycles system → Русский → English, relabelling in place without a reload
 - Noise filtered out: `@eaDir`, `#recycle`, `Thumbs.db`, `.DS_Store`, the asset dir itself
   (configurable via `hide`)
 
@@ -248,10 +271,14 @@ collect 429s instead of answers.
 pwsh tools/build-demo.ps1        # demo/index.html = top + a mock autoindex + bot
 py -m http.server 8777 --directory demo
 node tools/shoot.mjs http://localhost:8777/ screenshots
-node tools/test-motion.mjs http://localhost:8777/          # 42 checks
+node tools/test-motion.mjs http://localhost:8777/          # 44 checks
 node tools/test-probe.mjs http://your-share.example/       # needs real files
+node tools/feature-shots.mjs http://your-share.example/ screenshots
 node tools/qr-verify.mjs http://localhost:8777/ /tmp/qr    # then zbarimg
 ```
+
+The screenshot scripts force the UI to English so the images in this README do not
+depend on the machine they were taken on.
 
 Every script drives headless Chrome over CDP with no npm dependencies.
 `test-motion` covers shape, motion, glyph coverage and the interaction paths;

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- bump ?v= on every asset change: proxies and browsers cache these, and a
      stale css/js pair is the one way this can break after an update -->
-<link rel="stylesheet" href="/.m3listing/m3listing.css?v=5">
+<link rel="stylesheet" href="/.m3listing/m3listing.css?v=6">
 
 <script>
 /* Runs before paint: marks the document as JS-capable (so a no-JS client
@@ -32,8 +32,8 @@ window.M3LISTING = {
 };
 /* --------------------------------------------------------------------- */
 </script>
-<script defer src="/.m3listing/m3listing-probe.js?v=5"></script>
-<script defer src="/.m3listing/m3listing.js?v=5"></script>
+<script defer src="/.m3listing/m3listing-probe.js?v=6"></script>
+<script defer src="/.m3listing/m3listing.js?v=6"></script>
 </head>
 
 <body>
@@ -64,6 +64,10 @@ window.M3LISTING = {
     </div>
   </div>
   <div class="rail__bottom">
+    <button class="rail-item rail-item--circle" id="m3l-lang" type="button">
+      <span class="rail-item__ico"><span class="gs">language</span></span>
+      <span class="rail-item__lbl"></span>
+    </button>
     <a class="rail-item rail-item--circle" id="m3l-repo" target="_blank" rel="noopener">
       <span class="rail-item__ico"><span class="gs">code</span></span>
       <span class="rail-item__lbl"></span>
@@ -104,9 +108,14 @@ window.M3LISTING = {
     <div class="hero__in">
       <h1 class="hero__title">&nbsp;</h1>
       <p class="hero__sub"></p>
-      <div class="badge">
-        <span class="gs" style="font-size:18px">folder_open</span>
-        <span class="stats"></span>
+      <div class="hero__row">
+        <div class="badge">
+          <span class="gs" style="font-size:18px">folder_open</span>
+          <span class="stats"></span>
+        </div>
+        <button class="ddhere" type="button">
+          <span class="gs">download</span><span class="ddhere__t"></span>
+        </button>
       </div>
     </div>
   </section>
@@ -160,6 +169,34 @@ window.M3LISTING = {
     </div>
     <button class="viewer__nav viewer__prev" type="button"><span class="gs">chevron_left</span></button>
     <button class="viewer__nav viewer__next" type="button"><span class="gs">chevron_right</span></button>
+  </div>
+</div>
+
+<div class="dialog" hidden>
+  <div class="dialog__scrim"></div>
+  <div class="dialog__card" role="dialog" aria-modal="true">
+    <h2 class="dialog__title"></h2>
+    <p class="dialog__sub"></p>
+    <div class="dialog__actions">
+      <button class="dlgbtn" id="m3l-dd-fs" type="button">
+        <span class="gs">download</span><span class="dlgbtn__t"></span>
+      </button>
+      <button class="dlgbtn dlgbtn--tonal" id="m3l-dd-wget" type="button">
+        <span class="gs">terminal</span><span class="dlgbtn__t"></span>
+      </button>
+      <button class="dlgbtn dlgbtn--tonal" id="m3l-dd-aria" type="button">
+        <span class="gs">format_list_bulleted</span><span class="dlgbtn__t"></span>
+      </button>
+    </div>
+    <p class="dialog__hint"></p>
+    <div class="dialog__prog" hidden>
+      <div class="dialog__bar"><span></span></div>
+      <p class="dialog__stat"></p>
+      <p class="dialog__file"></p>
+    </div>
+    <div class="dialog__foot">
+      <button class="dlgbtn dlgbtn--text" id="m3l-dd-close" type="button"></button>
+    </div>
   </div>
 </div>
 

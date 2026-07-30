@@ -633,7 +633,13 @@ html:not(.gs-ready) .gs { visibility: hidden; }
 .item:hover .item__ico .gs { font-variation-settings: "opsz" 24, "wght" 400, "FILL" 1, "GRAD" 0; }
 
 .item__body { flex: 1 1 auto; min-width: 0; }
+/* name and badge share a row: the badge must not live inside the
+   ellipsised name, or a long file name pushes it out of the viewport */
+.item__title { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.item__title .freshdot { flex: none; }
 .item__name {
+  flex: 0 1 auto;
+  min-width: 0;
   display: block;
   font-family: var(--sans-text);
   font-size: 16px;
@@ -813,6 +819,7 @@ html:not(.gs-ready) .gs { visibility: hidden; }
   min-height: 176px;
 }
 .list.grid .item__body { width: 100%; }
+.list.grid .item__title { flex-wrap: wrap; }
 .list.grid .item__name {
   white-space: normal;
   display: -webkit-box;
@@ -1200,7 +1207,138 @@ html:not(.gs-ready) .gs { visibility: hidden; }
 @media (max-width: 900px) { .viewer__next { right: 20px; } }
 
 /* the credit sits in the rail, not under the list */
-@media (max-width: 768px) { #m3l-repo { display: none; } }
+@media (max-width: 768px) {
+  #m3l-repo { display: none; }
+  /* seven slots have to fit a phone, so trim the per-item floor */
+  .rail-item { min-width: 46px; }
+  .rail { overflow-x: auto; scrollbar-width: none; }
+  .rail::-webkit-scrollbar { display: none; }
+}
+
+/* ---------------------------------------------------------------
+   16. Downloading a directory
+   --------------------------------------------------------------- */
+.hero__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.ddhere {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin-top: 20px;
+  padding: 0 16px 0 12px;
+  border: 1px solid var(--outline-variant);
+  background: transparent;
+  color: var(--on-surface-variant);
+  border-radius: var(--r-badge);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background-color var(--d-med) var(--ease),
+              border-radius var(--d-med) var(--ease),
+              color var(--d-med) var(--ease);
+}
+.ddhere:hover { background: var(--surface-c2); color: var(--on-surface); border-radius: var(--r-row); }
+.ddhere .gs { font-size: 20px; }
+
+.dialog { position: fixed; inset: 0; z-index: 70; }
+.dialog__scrim {
+  position: absolute; inset: 0;
+  background: var(--scrim, rgba(0, 0, 0, .45));
+  opacity: 0;
+  transition: opacity var(--d-med) var(--ease);
+}
+.dialog.show .dialog__scrim { opacity: 1; }
+
+.dialog__card {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 24px;
+  background: var(--surface-c1);
+  border-radius: 28px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, .35);
+  opacity: 0;
+  transform: translate(-50%, -46%) scale(.97);
+  transition: opacity var(--d-fast) var(--ease),
+              transform var(--d-med) var(--ease),
+              background-color var(--d-slow) var(--ease);
+}
+.dialog.show .dialog__card { opacity: 1; transform: translate(-50%, -50%); }
+
+.dialog__title {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 22px;
+  font-weight: 475;
+  font-variation-settings: "GRAD" 0, "opsz" 18;
+}
+.dialog__sub {
+  margin: 8px 0 20px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.dialog__actions { display: flex; flex-direction: column; gap: 8px; }
+.dialog__hint {
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--on-surface-variant);
+}
+.dialog__foot { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+.dlgbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 20px;
+  border: 0;
+  cursor: pointer;
+  border-radius: var(--r-full);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--sans-text);
+  font-size: 15px;
+  font-weight: 500;
+  transition: background-color var(--d-med) var(--ease),
+              border-radius var(--d-med) var(--ease);
+}
+.dlgbtn:hover { border-radius: var(--r-item); }
+.dlgbtn--tonal { background: var(--secondary-container); color: var(--on-secondary-container); }
+.dlgbtn--text { background: transparent; color: var(--primary); height: 40px; padding: 0 16px; }
+.dlgbtn--text:hover { background: var(--surface-c2); }
+.dlgbtn .gs { font-size: 20px; }
+
+.dialog__prog { margin-top: 20px; }
+.dialog__bar {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--surface-c3);
+}
+.dialog__bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: var(--r-full);
+  background: var(--primary);
+  transition: width var(--d-med) var(--ease);
+}
+.dialog__bar span.is-indeterminate { animation: slide 1.4s var(--ease) infinite; width: 40%; }
+.dialog__stat { margin: 10px 0 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.dialog__file {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--on-surface-variant);
+  overflow-wrap: anywhere;
+}
 
 /* ---------------------------------------------------------------
    16. Reduced motion

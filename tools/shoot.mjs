@@ -86,8 +86,10 @@ for (const s of shots) {
   await sleep(120);
   await send('Page.navigate', { url: BASE }, S);
   await sleep(400);
+  /* the repository's screenshots are English regardless of the machine
+     they are taken on */
   await send('Runtime.evaluate', {
-    expression: `localStorage.clear();${s.pre || ''}`
+    expression: `localStorage.clear();localStorage.setItem('m3l.lang','en');${s.pre || ''}`
   }, S);
   await send('Page.navigate', { url: BASE }, S);
   await sleep(3500);                       // let the webfonts settle

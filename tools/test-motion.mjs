@@ -213,6 +213,32 @@ check('clicking a previewable file opens the viewer',
       feat.viewerOpen && /notes\.md/.test(feat.viewerName), feat.viewerName);
 check('pictures are marked for thumbnails', feat.thumbSlots > 0, feat.thumbSlots + ' rows');
 check('the QR encoder returns a matrix', feat.qrSize >= 21, feat.qrSize + '×' + feat.qrSize);
+
+/* a long name must ellipsise without shoving the "new" badge off the row */
+const longRow = await evaluate(`(() => {
+  const row = [...document.querySelectorAll('.item')]
+    .find(r => r.querySelector('.freshdot') && r.querySelector('.item__name').textContent.length > 40);
+  if (!row) return { skip: true };
+  const b = row.querySelector('.freshdot').getBoundingClientRect();
+  const r = row.getBoundingClientRect();
+  return { badgeRight: Math.round(b.right), rowRight: Math.round(r.right),
+           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+})()`);
+check('a long name keeps its badge inside the row',
+      longRow.skip || (longRow.badgeRight <= longRow.rowRight && longRow.overflow <= 0),
+      longRow.skip ? 'no long+fresh row in the fixture'
+                   : `badge ends at ${longRow.badgeRight}, row at ${longRow.rowRight}, page overflow ${longRow.overflow}px`);
+
+/* the language toggle relabels without a reload */
+const langs = await evaluate(`(() => {
+  const before = document.documentElement.lang;
+  const btn = document.getElementById('m3l-lang');
+  const seen = [];
+  for (let i = 0; i < 3; i++) { btn.click(); seen.push(document.documentElement.lang); }
+  return { before, seen, tab: document.querySelector('.tab').textContent };
+})()`);
+check('the language button cycles system → ru → en',
+      langs.seen.includes('ru') && langs.seen.includes('en'), langs.seen.join(' → '));
 await sleep(700);   /* let the viewer finish closing before hover tests */
 
 /* ---- 2c. multi-select ---- */
