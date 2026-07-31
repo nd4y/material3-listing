@@ -436,6 +436,35 @@ check('it switches the list and says what it will do next',
       viewSwitch.grid && viewSwitch.first === 'grid_view' && viewSwitch.second === 'view_list',
       `${viewSwitch.first} → ${viewSwitch.second}`);
 
+/* in grid view the row's actions must not lie over the thumbnail */
+const gridTail = await evaluate(`(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  document.getElementById('m3l-view').click(); await sleep(450);
+  const bad = [];
+  let checked = 0;
+  document.querySelectorAll('.list.grid .item').forEach(row => {
+    const t = row.querySelector('.item__tail'), c = row.querySelector('.item__ico');
+    if (!t || !t.getClientRects().length) return;
+    checked++;
+    const a = t.getBoundingClientRect(), b = c.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    const overlaps = a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    const inside = a.right <= r.right + .5 && a.left >= r.left - .5 && a.top >= r.top - .5;
+    const overName = a.bottom > row.querySelector('.item__body').getBoundingClientRect().top;
+    if (overlaps || !inside || overName) bad.push(row.dataset.href);
+  });
+  const one = document.querySelector('.list.grid .item');
+  const geom = {
+    chip: Math.round(one.querySelector('.item__ico').getBoundingClientRect().right),
+    tail: Math.round(one.querySelector('.item__tail').getBoundingClientRect().left)
+  };
+  document.getElementById('m3l-view').click(); await sleep(450);
+  return { checked, bad, geom, backToList: !document.querySelector('.list').classList.contains('grid') };
+})()`);
+check('grid cards keep their actions clear of the thumbnail',
+      gridTail.checked > 0 && gridTail.bad.length === 0 && gridTail.backToList,
+      `${gridTail.checked} cards, chip ends at ${gridTail.geom.chip}, actions start at ${gridTail.geom.tail}`);
+
 await send('Emulation.setDeviceMetricsOverride',
   { width: 400, height: 860, deviceScaleFactor: 2, mobile: true }, S);
 await sleep(600);

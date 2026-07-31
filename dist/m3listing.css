@@ -845,18 +845,36 @@ html:not(.gs-ready) .gs { visibility: hidden; }
    --------------------------------------------------------------- */
 .list.grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  /* wide enough for the chip and the row's actions to share the top line
+     without touching — see below */
+  grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
   gap: 8px;
 }
+/* A card is two lines: the chip and the actions share the first, the name
+   and meta take the second. The actions used to be pinned to the card's
+   top-right corner, which laid them over the thumbnail — the one part of
+   a card you are looking at. */
 .list.grid .item {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 20px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: start;
+  gap: 14px 8px;
+  padding: 18px;
   border-radius: var(--r-card) !important;
   min-height: 176px;
 }
-.list.grid .item__body { width: 100%; }
+.list.grid .item__ico { grid-area: 1 / 1; }
+.list.grid .item__tail {
+  grid-area: 1 / 2;
+  justify-self: end;
+  align-self: center;
+  /* if a narrower column ever does squeeze them, they drop to a second
+     line instead of being clipped by the card */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.list.grid .item__tail .iconbtn { width: 36px; height: 36px; }
+.list.grid .item__body { grid-area: 2 / 1 / 3 / 3; width: 100%; }
 .list.grid .item__title { flex-wrap: wrap; }
 .list.grid .item__name {
   white-space: normal;
@@ -865,7 +883,6 @@ html:not(.gs-ready) .gs { visibility: hidden; }
   -webkit-box-orient: vertical;
 }
 .list.grid .item__meta { white-space: normal; }
-.list.grid .item__tail { position: absolute; top: 12px; right: 10px; }
 .list.grid .item__chev { display: none; }
 
 /* ---------------------------------------------------------------
