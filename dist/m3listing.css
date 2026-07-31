@@ -1240,8 +1240,25 @@ html:not(.gs-ready) .gs { visibility: hidden; }
 .zip__n { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .zip__s { flex: none; font-variant-numeric: tabular-nums; color: var(--on-surface-variant); }
 
-.viewer__qr { margin-bottom: 14px; }
+/* The QR panel unfolds instead of appearing: `hidden` cannot be eased, so
+   the height is driven from the script the way the search panel is, and
+   the code scales up into place with it. */
+.viewer__qr {
+  overflow: hidden;
+  height: 0;
+  margin-bottom: 0;
+  opacity: 0;
+  transform: scale(.94);
+  transform-origin: top center;
+  transition: height var(--d-med) var(--ease),
+              margin var(--d-med) var(--ease),
+              opacity var(--d-fast) var(--ease),
+              transform var(--d-med) var(--ease);
+}
+.viewer__qr.is-open { margin-bottom: 14px; opacity: 1; transform: none; }
 .qr { display: block; width: 100%; max-width: 260px; border-radius: var(--r-item); }
+
+.viewer__qrbtn.is-on { background: var(--secondary-container); color: var(--on-secondary-container); }
 
 .viewer__nav {
   position: absolute;

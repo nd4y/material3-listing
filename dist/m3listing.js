@@ -815,6 +815,12 @@
      Walking the tree — used by recursive search and by directory sizes
      ================================================================== */
   function crawl(startUrl, opts) {
+    /* Absolute from here down. A row's href is relative — it comes
+       straight out of the listing — and `new URL(href, base)` throws when
+       the base is relative too, which the catch below would swallow into
+       an empty crawl: the size came back as 0 bytes and the tree as no
+       files at all. */
+    startUrl = new URL(startUrl, location.href).href;
     var queue = [startUrl], seen = Object.create(null), active = 0;
     var dirs = 0, stopped = false;
     seen[startUrl] = 1;
@@ -928,6 +934,7 @@
         entry.measured = { bytes: bytes, files: files };
         entry._measuring = false;
         paint(true);
+        window.M3L_LASTMEASURE = entry.measured;   /* test seam */
       }
     });
   }
@@ -1748,15 +1755,56 @@
     $.viewer.querySelector('.viewer__next').addEventListener('click', function () { step(1); });
     $.vQrBtn = $.viewer.querySelector('.viewer__qrbtn');
     $.vQrBtn.title = T.qr;
+    $.vQrBtn.setAttribute('aria-pressed', 'false');
     $.vQrBtn.addEventListener('click', function () {
-      $.vQr.hidden = !$.vQr.hidden;
-      if (!$.vQr.hidden) drawQR($.vQr, abs(state.viewing.href));
+      showQR(!$.vQr.classList.contains('is-open'));
     });
     $.vDl = $.viewer.querySelector('.viewer__dl');
     $.vDl.title = T.download;
     $.vCopy = $.viewer.querySelector('.viewer__copy');
     $.vCopy.title = T.copy;
     $.vCopy.addEventListener('click', function () { copyText(abs(state.viewing.href), T.copied); });
+  }
+
+  /* The panel is measured to be animated, so its height is a number while
+     it moves and `auto` once it has arrived — otherwise a taller QR code
+     for a longer URL would be clipped at the old height. */
+  var qrTimer;
+
+  function showQR(on) {
+    var n = $.vQr;
+    clearTimeout(qrTimer);
+    if (on) {
+      n.hidden = false;
+      drawQR(n, abs(state.viewing.href));
+      n.style.height = '0px';
+      void n.offsetHeight;              /* commit the closed state first */
+      n.classList.add('is-open');
+      n.style.height = n.scrollHeight + 'px';
+      qrTimer = setTimeout(function () {
+        if (n.classList.contains('is-open')) n.style.height = 'auto';
+      }, 340);
+    } else {
+      n.style.height = n.scrollHeight + 'px';
+      void n.offsetHeight;
+      n.classList.remove('is-open');
+      n.style.height = '0px';
+      qrTimer = setTimeout(function () {
+        if (!n.classList.contains('is-open')) { n.hidden = true; n.textContent = ''; }
+      }, 340);
+    }
+    $.vQrBtn.classList.toggle('is-on', on);
+    $.vQrBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  function resetQR() {
+    clearTimeout(qrTimer);
+    $.vQr.classList.remove('is-open');
+    $.vQr.style.height = '';
+    $.vQr.textContent = '';
+    $.vQr.hidden = true;
+    $.vQrBtn.classList.remove('is-on');
+    $.vQrBtn.setAttribute('aria-pressed', 'false');
   }
 
   /* The enter transition needs a frame between `hidden = false` and the
@@ -1775,7 +1823,18 @@
     });
     $.vTitle.textContent = entry.name;
     $.vDl.href = entry.href;
-    $.vQr.hidden = true;
+    /* stepping to the next file keeps the QR panel open — it is a mode,
+       not a one-off — but redraws it for the file now on screen */
+    var keepQR = $.vQr.classList.contains('is-open');
+    resetQR();
+    if (keepQR) {
+      $.vQr.hidden = false;
+      drawQR($.vQr, abs(entry.href));
+      $.vQr.classList.add('is-open');
+      $.vQr.style.height = 'auto';
+      $.vQrBtn.classList.add('is-on');
+      $.vQrBtn.setAttribute('aria-pressed', 'true');
+    }
     $.vStage.textContent = '';
     $.vProps.textContent = '';
 

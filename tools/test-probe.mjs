@@ -110,6 +110,29 @@ await probeOne('picture: dimensions from the header', found.pic, info => ({
   detail: `${info.format} ${info.width}×${info.height}`
 }));
 
+/* The per-row "measure this directory" button feeds the crawler the row's
+   own href, which is relative — that used to come back as 0 bytes. */
+const measured = await ev(`(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const row = [...document.querySelectorAll('.item')].find(n => /\\/$/.test(n.dataset.href));
+  if (!row) return { skip: 'no directory row' };
+  const btn = [...row.querySelectorAll('.item__tail .iconbtn')]
+    .find(b => /straighten/.test(b.textContent));
+  if (!btn) return { skip: 'no measure button' };
+  btn.click();
+  for (let i = 0; i < 90; i++) {
+    await sleep(500);
+    const m = row.querySelector('.item__meta').textContent;
+    if (window.M3L_LASTMEASURE) break;
+    if (i === 89) return { href: row.dataset.href, text: m, timeout: true };
+  }
+  return { href: row.dataset.href, text: row.querySelector('.item__meta').textContent,
+           bytes: window.M3L_LASTMEASURE.bytes, files: window.M3L_LASTMEASURE.files };
+})()`);
+check('the size button counts a directory from a relative href',
+      measured.skip ? true : (!measured.timeout && measured.bytes > 0 && measured.files > 0),
+      measured.skip || `${measured.href} → ${measured.text}`);
+
 ws.close(); chrome.kill();
 
 let bad = 0;

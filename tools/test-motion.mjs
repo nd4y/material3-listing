@@ -214,6 +214,37 @@ check('clicking a previewable file opens the viewer',
 check('pictures are marked for thumbnails', feat.thumbSlots > 0, feat.thumbSlots + ' rows');
 check('the QR encoder returns a matrix', feat.qrSize >= 21, feat.qrSize + '×' + feat.qrSize);
 
+/* the QR panel unfolds — `hidden` would snap it into place */
+const qrPanel = await evaluate(`(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const rows = [...document.querySelectorAll('.item')];
+  (rows.find(r => /notes\\.md/.test(r.dataset.href)) || rows[0]).querySelector('.item__link').click();
+  await sleep(500);
+  const panel = document.querySelector('.viewer__qr');
+  const btn = document.querySelector('.viewer__qrbtn');
+  btn.click();
+  await sleep(60);
+  const mid = { h: parseFloat(getComputedStyle(panel).height), o: getComputedStyle(panel).opacity };
+  await sleep(500);
+  const open = { h: parseFloat(getComputedStyle(panel).height), o: getComputedStyle(panel).opacity,
+                 canvas: !!panel.querySelector('canvas'), pressed: btn.getAttribute('aria-pressed') };
+  btn.click();
+  await sleep(500);
+  const shut = { h: parseFloat(getComputedStyle(panel).height) || 0, hidden: panel.hidden,
+                 pressed: btn.getAttribute('aria-pressed') };
+  document.querySelector('.viewer__close').click();
+  await sleep(400);
+  return { transition: getComputedStyle(panel).transition, mid, open, shut };
+})()`);
+check('the QR panel eases open on height and opacity',
+      qrPanel.transition.includes('height') && qrPanel.transition.includes(EASE) &&
+      qrPanel.mid.h < qrPanel.open.h && parseFloat(qrPanel.mid.o) < 1,
+      `${Math.round(qrPanel.mid.h)}px/${qrPanel.mid.o} → ${Math.round(qrPanel.open.h)}px/${qrPanel.open.o}`);
+check('it folds back and the button reflects the state',
+      qrPanel.open.canvas && qrPanel.open.pressed === 'true' &&
+      qrPanel.shut.h === 0 && qrPanel.shut.hidden && qrPanel.shut.pressed === 'false',
+      `open ${qrPanel.open.pressed}, shut ${qrPanel.shut.pressed}, hidden ${qrPanel.shut.hidden}`);
+
 /* a long name must ellipsise without shoving the "new" badge off the row */
 const longRow = await evaluate(`(() => {
   const row = [...document.querySelectorAll('.item')]
