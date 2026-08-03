@@ -1,5 +1,7 @@
 # m3listing
 
+🇬🇧 **English** | [🇷🇺 Русский](README.ru.md)
+
 nginx directory listings that look like **[m3.material.io](https://m3.material.io)** — the
 same palette, the same type, the same shapes, the same motion.
 
