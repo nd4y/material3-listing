@@ -94,8 +94,8 @@ with JavaScript disabled: the class is never set, so nothing is hidden.
 
    ```js
    window.M3LISTING = {
-     title: 'public',      // the name shown on the page
-     lang:  'auto'         // 'auto' | 'ru' | 'en'
+     title: "public", // the name shown on the page
+     lang: "auto", // 'auto' | 'ru' | 'en'
    };
    ```
 
@@ -120,14 +120,14 @@ two is the one way an update can break the page.
 Every value below was read off the live site with Playwright computed-style probes
 (`tools/` has the probe recipe in its git history) rather than eyeballed:
 
-| | light | dark |
-| --- | --- | --- |
-| shell | `#FEFBFF` | `#141314` |
-| cards / rows | `#F8F1F6` | `#1C1B1D` |
-| rail | `#F2ECEE` | `#211F21` |
-| hover surface | `#ECE5EB` | `#2A282B` |
-| accent | `#6442D6` | `#9F86FF` |
-| active pill | `#DCDAF5` | `#45455A` |
+|                   | light     | dark      |
+| ----------------- | --------- | --------- |
+| shell             | `#FEFBFF` | `#141314` |
+| cards / rows      | `#F8F1F6` | `#1C1B1D` |
+| rail              | `#F2ECEE` | `#211F21` |
+| hover surface     | `#ECE5EB` | `#2A282B` |
+| accent            | `#6442D6` | `#9F86FF` |
+| active pill       | `#DCDAF5` | `#45455A` |
 | fab / folder chip | `#F1D3F9` | `#553F5D` |
 
 **Type.** `Google Sans` at weight **475** with `font-variation-settings: "GRAD" 0, "opsz" 18`
@@ -141,11 +141,11 @@ rows 8px inside a 24px group. The top strip carries the site's `0 0 40px 40px` c
 **Motion.** The site uses exactly one easing curve, `cubic-bezier(.2, 0, 0, 1)`, at three
 durations, and so does this:
 
-| duration | what moves |
-| --- | --- |
-| `.2s` | icon `font-variation-settings` (FILL morph), state overlays |
-| `.3s` | `border-radius` + `background-color` on rails, rows, tabs, fields; entrance |
-| `.5s` | theme cross-fade on every surface |
+| duration | what moves                                                                  |
+| -------- | --------------------------------------------------------------------------- |
+| `.2s`    | icon `font-variation-settings` (FILL morph), state overlays                 |
+| `.3s`    | `border-radius` + `background-color` on rails, rows, tabs, fields; entrance |
+| `.5s`    | theme cross-fade on every surface                                           |
 
 Layout properties are transitioned too — rail width, shell margin, hero padding, display
 font-size, row and chip metrics — so **resizing the window eases** across the breakpoint
@@ -185,11 +185,11 @@ tokens; the skin expands them back to bytes for sorting and totals, inheriting t
 With `on` nginx prints exact byte counts, totals become exact and hovering a row shows the
 precise size. Both are supported, nothing to configure.
 
-**`autoindex_format json`** is *not* used. It cannot be combined with the addition module in
+**`autoindex_format json`** is _not_ used. It cannot be combined with the addition module in
 one location, and the href already carries the untruncated name, so the only thing JSON
 would add is exact sizes — which `autoindex_exact_size on` gives for free.
 
-**`addition_types`** defaults to `text/html`, so the wrapper is glued onto *every* HTML file
+**`addition_types`** defaults to `text/html`, so the wrapper is glued onto _every_ HTML file
 served from that location, not just listings. That is why the fallback path matters: for a
 real HTML file there is no `pre`, the script bails out and the file renders as itself.
 
@@ -218,15 +218,15 @@ or the tail of a file is enough to answer most of what you want to know about it
 `info` button on a row opens a viewer with a properties panel filled in from
 [`dist/m3listing-probe.js`](dist/m3listing-probe.js):
 
-| format | read from | what comes back |
-| --- | --- | --- |
-| ZIP, APK, JAR, DOCX, EPUB | tail (~64 KB) | the full table of contents, sizes, compression ratio |
-| ISO 9660 | 2 KB at offset 32768 | volume label, publisher, block count, creation date |
-| JPEG, PNG, GIF, WebP, BMP, AVIF | head | dimensions, bit depth, and EXIF for JPEG |
-| MP4, MOV, M4A | head, tail if not faststart | duration, resolution, per-track codecs |
-| Matroska, WebM | head | duration, title, tracks with codec, language and channels |
-| MP3 | head + tail | ID3 tags, bitrate, VBR flag, embedded cover art |
-| FLAC | head | exact duration, sample rate, tags, cover art |
+| format                          | read from                   | what comes back                                           |
+| ------------------------------- | --------------------------- | --------------------------------------------------------- |
+| ZIP, APK, JAR, DOCX, EPUB       | tail (~64 KB)               | the full table of contents, sizes, compression ratio      |
+| ISO 9660                        | 2 KB at offset 32768        | volume label, publisher, block count, creation date       |
+| JPEG, PNG, GIF, WebP, BMP, AVIF | head                        | dimensions, bit depth, and EXIF for JPEG                  |
+| MP4, MOV, M4A                   | head, tail if not faststart | duration, resolution, per-track codecs                    |
+| Matroska, WebM                  | head                        | duration, title, tracks with codec, language and channels |
+| MP3                             | head + tail                 | ID3 tags, bitrate, VBR flag, embedded cover art           |
+| FLAC                            | head                        | exact duration, sample rate, tags, cover art              |
 
 Probe requests are serialised in a queue, because a share behind nginx often caps
 concurrent connections per client for large files and a burst of parallel probes would
@@ -262,7 +262,7 @@ collect 429s instead of answers.
 - Per-row copy-link and download buttons
 - **Multi-select and batch download** — the leading chip is also the checkbox (it turns into
   a tick on hover), `Ctrl`/`⌘`+click and `Shift`+click work on the row, `Ctrl`/`⌘`+`A` takes
-  everything on screen, the rail's *Select* button turns on a picking mode for pointerless
+  everything on screen, the rail's _Select_ button turns on a picking mode for pointerless
   work, and on a phone — where the bottom bar has no room for it — a long press on a row
   starts selection. A floating action bar then downloads the selected files or copies all
   their links.
@@ -302,3 +302,7 @@ place the Range parsers can be exercised.
 [Material Symbols](https://github.com/google/material-design-icons), Apache 2.0; the
 webfonts are not redistributed, only loaded from Google Fonts under their own licence.
 See [NOTICE](NOTICE).
+
+## Development standard
+
+This repository adopts version 0.4.0 of the shared development standard. Read the [English guide](docs/en/development-standard.md) or [Russian guide](docs/ru/development-standard.md). The local toolkit checks staged secrets, changed-file formatting and bilingual documentation before merge. Existing product CI remains in place. Adoption is in progress; product acceptance and legacy-document translation are recorded separately in .repo-policy.json.
